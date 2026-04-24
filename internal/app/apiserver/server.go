@@ -329,7 +329,7 @@ func collectionViaKinopoisk(ctx context.Context, collType, page string) ([]searc
 	return items, nil
 }
 
-// handleFilmsFilter: keyword → v2.1 search-by-keyword; filters only → v2.2/films.
+// handleFilmsFilter uses v2.2 filters even with keyword so UI filters stay active.
 func handleFilmsFilter(w http.ResponseWriter, r *http.Request) {
 	keyword := strings.TrimSpace(r.URL.Query().Get("keyword"))
 	page := strings.TrimSpace(r.URL.Query().Get("page"))
@@ -337,23 +337,8 @@ func handleFilmsFilter(w http.ResponseWriter, r *http.Request) {
 		page = "1"
 	}
 
-	if keyword != "" {
-		items, _, err := searchViaKinopoisk(r.Context(), keyword)
-		if err != nil {
-			writeError(w, http.StatusBadGateway, "Ошибка поиска KP", err.Error())
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{
-			"items":      items,
-			"count":      len(items),
-			"total":      len(items),
-			"totalPages": 1,
-		})
-		return
-	}
-
 	params := url.Values{}
-	for _, key := range []string{"countries", "genres", "order", "type", "ratingFrom", "ratingTo", "yearFrom", "yearTo"} {
+	for _, key := range []string{"keyword", "countries", "genres", "order", "type", "ratingFrom", "ratingTo", "yearFrom", "yearTo"} {
 		if val := strings.TrimSpace(r.URL.Query().Get(key)); val != "" {
 			params.Set(key, val)
 		}
@@ -366,6 +351,18 @@ func handleFilmsFilter(w http.ResponseWriter, r *http.Request) {
 		"Accept":    []string{"application/json"},
 	}, upstreamCacheTTL)
 	if err != nil {
+		if keyword != "" {
+			items, _, searchErr := searchViaKinopoisk(r.Context(), keyword)
+			if searchErr == nil {
+				writeJSON(w, http.StatusOK, map[string]any{
+					"items":      items,
+					"count":      len(items),
+					"total":      len(items),
+					"totalPages": 1,
+				})
+				return
+			}
+		}
 		writeError(w, http.StatusBadGateway, "Ошибка KP API", err.Error())
 		return
 	}
@@ -689,34 +686,22 @@ func handleHistory(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		limit := envIntOrDefault("LIBRARY_HISTORY_LIMIT", 50)
-		if authed && dbEnabled() {
-			items, err := getHistoryItems(r.Context(), user.ID, limit)
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "Не удалось загрузить историю", err.Error())
-				return
-			}
-			writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+		if !authed || !dbEnabled() {
+			writeJSON(w, http.StatusOK, map[string]any{"items": []libraryItem{}, "count": 0})
 			return
 		}
-		items, err := getLibraryItems(r.Context(), libraryHistoryIndexKey(), libraryHistoryItemsKey(), limit)
+		items, err := getHistoryItems(r.Context(), user.ID, limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось загрузить историю", err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
-			"items": items,
-			"count": len(items),
-		})
+		writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
 	case http.MethodDelete:
-		if authed && dbEnabled() {
-			if err := clearHistoryItems(r.Context(), user.ID); err != nil {
-				writeError(w, http.StatusInternalServerError, "Не удалось очистить историю", err.Error())
-				return
-			}
+		if !authed || !dbEnabled() {
 			writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 			return
 		}
-		if err := clearLibraryBucket(r.Context(), libraryHistoryIndexKey(), libraryHistoryItemsKey()); err != nil {
+		if err := clearHistoryItems(r.Context(), user.ID); err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось очистить историю", err.Error())
 			return
 		}
@@ -730,25 +715,21 @@ func handleFavorites(w http.ResponseWriter, r *http.Request) {
 	user, authed := currentUserFromRequest(r)
 	switch r.Method {
 	case http.MethodGet:
-		if authed && dbEnabled() {
-			items, err := getFavoriteItems(r.Context(), user.ID)
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "Не удалось загрузить избранное", err.Error())
-				return
-			}
-			writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+		if !authed || !dbEnabled() {
+			writeJSON(w, http.StatusOK, map[string]any{"items": []libraryItem{}, "count": 0})
 			return
 		}
-		items, err := getLibraryItems(r.Context(), libraryFavoritesIndexKey(), libraryFavoritesItemsKey(), 200)
+		items, err := getFavoriteItems(r.Context(), user.ID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось загрузить избранное", err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
-			"items": items,
-			"count": len(items),
-		})
+		writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
 	case http.MethodPost:
+		if !authed || !dbEnabled() {
+			writeError(w, http.StatusUnauthorized, "Нужна авторизация", "")
+			return
+		}
 		var req struct {
 			KPID     int    `json:"kpId"`
 			Provider string `json:"provider"`
@@ -766,34 +747,22 @@ func handleFavorites(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadGateway, "Не удалось добавить в избранное", err.Error())
 			return
 		}
-		if authed && dbEnabled() {
-			if err := saveFavoriteItem(r.Context(), user.ID, item); err != nil {
-				writeError(w, http.StatusInternalServerError, "Не удалось сохранить избранное", err.Error())
-				return
-			}
-			writeJSON(w, http.StatusOK, map[string]any{"ok": true, "item": item})
-			return
-		}
-		if err := saveFavorite(r.Context(), item); err != nil {
+		if err := saveFavoriteItem(r.Context(), user.ID, item); err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось сохранить избранное", err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "item": item})
 	case http.MethodDelete:
+		if !authed || !dbEnabled() {
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+			return
+		}
 		kpID := strings.TrimSpace(r.URL.Query().Get("kp"))
 		if kpID == "" {
 			writeError(w, http.StatusBadRequest, "Не передан kp", "")
 			return
 		}
-		if authed && dbEnabled() {
-			if err := removeFavoriteItem(r.Context(), user.ID, kpID); err != nil {
-				writeError(w, http.StatusInternalServerError, "Не удалось удалить из избранного", err.Error())
-				return
-			}
-			writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-			return
-		}
-		if err := removeFavorite(r.Context(), kpID); err != nil {
+		if err := removeFavoriteItem(r.Context(), user.ID, kpID); err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось удалить из избранного", err.Error())
 			return
 		}
@@ -905,18 +874,7 @@ func providerLabel(provider string) string {
 }
 
 func saveHistoryByKPID(ctx context.Context, userID int64, kpID, provider string) {
-	if !redisEnabled || strings.TrimSpace(kpID) == "" {
-		if userID == 0 || strings.TrimSpace(kpID) == "" || !dbEnabled() {
-			return
-		}
-		item, err := buildLibraryItem(ctx, kpID, provider)
-		if err != nil {
-			log.Printf("history skip %s: %v", kpID, err)
-			return
-		}
-		if err := saveHistoryItem(ctx, userID, item); err != nil {
-			log.Printf("history save %s: %v", kpID, err)
-		}
+	if userID == 0 || strings.TrimSpace(kpID) == "" || !dbEnabled() {
 		return
 	}
 	item, err := buildLibraryItem(ctx, kpID, provider)
@@ -924,13 +882,7 @@ func saveHistoryByKPID(ctx context.Context, userID int64, kpID, provider string)
 		log.Printf("history skip %s: %v", kpID, err)
 		return
 	}
-	if userID > 0 && dbEnabled() {
-		if err := saveHistoryItem(ctx, userID, item); err != nil {
-			log.Printf("history save %s: %v", kpID, err)
-		}
-		return
-	}
-	if err := saveHistory(ctx, item); err != nil {
+	if err := saveHistoryItem(ctx, userID, item); err != nil {
 		log.Printf("history save %s: %v", kpID, err)
 	}
 }

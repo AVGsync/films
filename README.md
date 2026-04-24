@@ -28,6 +28,7 @@ Frontend получает список через `GET /api/providers`, iframe U
 Postgres хранит:
 
 - пользователей
+- email для входа
 - роли `user` / `admin`
 - избранное
 - историю
@@ -50,6 +51,7 @@ Admin endpoints:
 Админ создаётся/обновляется при старте из `.env`:
 
 - `ADMIN_LOGIN`
+- `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
 
 ## Миграции

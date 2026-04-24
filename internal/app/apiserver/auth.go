@@ -34,6 +34,7 @@ var (
 type authUser struct {
 	ID        int64  `json:"id"`
 	Login     string `json:"login"`
+	Email     string `json:"email"`
 	Role      string `json:"role"`
 	CreatedAt string `json:"createdAt,omitempty"`
 }
@@ -41,8 +42,15 @@ type authUser struct {
 type jwtClaims struct {
 	UserID int64  `json:"uid"`
 	Login  string `json:"login"`
+	Email  string `json:"email"`
 	Role   string `json:"role"`
 	jwt.RegisteredClaims
+}
+
+type authRequest struct {
+	Login    string `json:"login"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func initDatabase() error {
@@ -144,24 +152,29 @@ func runMigrations(ctx context.Context, db *sql.DB, dir string) error {
 }
 
 func seedAdmin(ctx context.Context) error {
-	login := strings.TrimSpace(os.Getenv("ADMIN_LOGIN"))
+	login := normalizeLogin(os.Getenv("ADMIN_LOGIN"))
+	email := normalizeEmail(os.Getenv("ADMIN_EMAIL"))
 	password := strings.TrimSpace(os.Getenv("ADMIN_PASSWORD"))
 	if login == "" || password == "" {
 		log.Println("WARNING: ADMIN_LOGIN/ADMIN_PASSWORD not set; admin seed skipped")
 		return nil
+	}
+	if email == "" {
+		email = login + "@local.invalid"
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 	_, err = postgresDB.ExecContext(ctx, `
-		INSERT INTO users (login, password_hash, role)
-		VALUES ($1, $2, $3)
+		INSERT INTO users (login, email, password_hash, role)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (login) DO UPDATE
-		SET password_hash = EXCLUDED.password_hash,
-		    role = $3,
+		SET email = EXCLUDED.email,
+		    password_hash = EXCLUDED.password_hash,
+		    role = $4,
 		    updated_at = now()
-	`, login, string(hash), roleAdmin)
+	`, login, email, string(hash), roleAdmin)
 	return err
 }
 
@@ -175,22 +188,22 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	login, password, ok := decodeAuthRequest(w, r)
+	req, ok := decodeAuthRequest(w, r)
 	if !ok {
 		return
 	}
-	if len(login) < 3 || len(password) < 6 {
-		writeError(w, http.StatusBadRequest, "Логин от 3 символов, пароль от 6", "")
+	if len(req.Login) < 3 || !validEmail(req.Email) || len(req.Password) < 6 {
+		writeError(w, http.StatusBadRequest, "Логин от 3 символов, корректный email, пароль от 6", "")
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Не удалось создать пароль", err.Error())
 		return
 	}
 
-	user, err := createUser(r.Context(), login, string(hash), roleUser)
+	user, err := createUser(r.Context(), req.Login, req.Email, string(hash), roleUser)
 	if err != nil {
 		writeError(w, http.StatusConflict, "Пользователь уже существует", err.Error())
 		return
@@ -208,14 +221,18 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	login, password, ok := decodeAuthRequest(w, r)
+	req, ok := decodeAuthRequest(w, r)
 	if !ok {
 		return
 	}
+	if !validEmail(req.Email) {
+		writeError(w, http.StatusBadRequest, "Корректный email обязателен", "")
+		return
+	}
 
-	user, hash, err := findUserWithHashByLogin(r.Context(), login)
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
-		writeError(w, http.StatusUnauthorized, "Неверный логин или пароль", "")
+	user, hash, err := findUserWithHashByEmail(r.Context(), req.Email)
+	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)) != nil {
+		writeError(w, http.StatusUnauthorized, "Неверный email или пароль", "")
 		return
 	}
 	writeAuthResponse(w, user)
@@ -233,22 +250,20 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-func decodeAuthRequest(w http.ResponseWriter, r *http.Request) (string, string, bool) {
-	var req struct {
-		Login    string `json:"login"`
-		Password string `json:"password"`
-	}
+func decodeAuthRequest(w http.ResponseWriter, r *http.Request) (authRequest, bool) {
+	var req authRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Некорректный JSON", err.Error())
-		return "", "", false
+		return authRequest{}, false
 	}
-	login := strings.ToLower(strings.TrimSpace(req.Login))
-	password := strings.TrimSpace(req.Password)
-	if login == "" || password == "" {
-		writeError(w, http.StatusBadRequest, "Логин и пароль обязательны", "")
-		return "", "", false
+	req.Login = normalizeLogin(req.Login)
+	req.Email = normalizeEmail(firstNonEmpty(req.Email, req.Login))
+	req.Password = strings.TrimSpace(req.Password)
+	if req.Email == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "Email и пароль обязательны", "")
+		return authRequest{}, false
 	}
-	return login, password, true
+	return req, true
 }
 
 func writeAuthResponse(w http.ResponseWriter, user authUser) {
@@ -269,6 +284,7 @@ func issueToken(user authUser) (string, time.Time, error) {
 	claims := jwtClaims{
 		UserID: user.ID,
 		Login:  user.Login,
+		Email:  user.Email,
 		Role:   user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   strconv.FormatInt(user.ID, 10),
@@ -311,7 +327,7 @@ func currentUserFromRequest(r *http.Request) (*authUser, bool) {
 			return &user, true
 		}
 	}
-	return &authUser{ID: claims.UserID, Login: claims.Login, Role: claims.Role}, true
+	return &authUser{ID: claims.UserID, Login: claims.Login, Email: claims.Email, Role: claims.Role}, true
 }
 
 func requireAuth(w http.ResponseWriter, r *http.Request) (*authUser, bool) {
@@ -342,27 +358,27 @@ func userIDOrZero(user *authUser) int64 {
 	return user.ID
 }
 
-func createUser(ctx context.Context, login, hash, role string) (authUser, error) {
+func createUser(ctx context.Context, login, email, hash, role string) (authUser, error) {
 	var user authUser
 	var createdAt time.Time
 	err := postgresDB.QueryRowContext(ctx, `
-		INSERT INTO users (login, password_hash, role)
-		VALUES ($1, $2, $3)
-		RETURNING id, login, role, created_at
-	`, login, hash, role).Scan(&user.ID, &user.Login, &user.Role, &createdAt)
+		INSERT INTO users (login, email, password_hash, role)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, login, email, role, created_at
+	`, login, email, hash, role).Scan(&user.ID, &user.Login, &user.Email, &user.Role, &createdAt)
 	user.CreatedAt = createdAt.Format(time.RFC3339)
 	return user, err
 }
 
-func findUserWithHashByLogin(ctx context.Context, login string) (authUser, string, error) {
+func findUserWithHashByEmail(ctx context.Context, email string) (authUser, string, error) {
 	var user authUser
 	var hash string
 	var createdAt time.Time
 	err := postgresDB.QueryRowContext(ctx, `
-		SELECT id, login, role, password_hash, created_at
+		SELECT id, login, email, role, password_hash, created_at
 		FROM users
-		WHERE login = $1
-	`, login).Scan(&user.ID, &user.Login, &user.Role, &hash, &createdAt)
+		WHERE email = $1
+	`, email).Scan(&user.ID, &user.Login, &user.Email, &user.Role, &hash, &createdAt)
 	user.CreatedAt = createdAt.Format(time.RFC3339)
 	return user, hash, err
 }
@@ -371,17 +387,17 @@ func findUserByID(ctx context.Context, id int64) (authUser, error) {
 	var user authUser
 	var createdAt time.Time
 	err := postgresDB.QueryRowContext(ctx, `
-		SELECT id, login, role, created_at
+		SELECT id, login, email, role, created_at
 		FROM users
 		WHERE id = $1
-	`, id).Scan(&user.ID, &user.Login, &user.Role, &createdAt)
+	`, id).Scan(&user.ID, &user.Login, &user.Email, &user.Role, &createdAt)
 	user.CreatedAt = createdAt.Format(time.RFC3339)
 	return user, err
 }
 
 func listUsers(ctx context.Context) ([]authUser, error) {
 	rows, err := postgresDB.QueryContext(ctx, `
-		SELECT id, login, role, created_at
+		SELECT id, login, email, role, created_at
 		FROM users
 		ORDER BY created_at DESC
 	`)
@@ -394,13 +410,27 @@ func listUsers(ctx context.Context) ([]authUser, error) {
 	for rows.Next() {
 		var user authUser
 		var createdAt time.Time
-		if err := rows.Scan(&user.ID, &user.Login, &user.Role, &createdAt); err != nil {
+		if err := rows.Scan(&user.ID, &user.Login, &user.Email, &user.Role, &createdAt); err != nil {
 			return nil, err
 		}
 		user.CreatedAt = createdAt.Format(time.RFC3339)
 		users = append(users, user)
 	}
 	return users, rows.Err()
+}
+
+func normalizeLogin(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func normalizeEmail(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func validEmail(value string) bool {
+	value = normalizeEmail(value)
+	at := strings.Index(value, "@")
+	return at > 0 && at < len(value)-3 && strings.Contains(value[at+1:], ".")
 }
 
 func updateUserRole(ctx context.Context, id int64, role string) error {

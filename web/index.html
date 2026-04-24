@@ -46,7 +46,8 @@ header {
   border-bottom: 1px solid var(--border);
   padding: 0 20px;
   height: 56px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(260px, 560px) minmax(190px, 1fr);
   align-items: center;
   gap: 16px;
 }
@@ -65,9 +66,10 @@ header {
 .brand svg { color: var(--accent); }
 
 .search-wrap {
-  flex: 1;
-  max-width: 420px;
+  width: 100%;
+  max-width: 560px;
   position: relative;
+  justify-self: center;
 }
 .search-wrap input {
   width: 100%;
@@ -94,7 +96,7 @@ header {
 .provider-tabs {
   display: flex;
   gap: 4px;
-  margin-left: auto;
+  flex-wrap: wrap;
   flex-shrink: 0;
 }
 .provider-tabs button {
@@ -114,11 +116,13 @@ header {
   border-color: rgba(249,115,22,0.3);
   color: var(--accent);
 }
+.detail-providers { margin: 4px 0 18px; }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+  justify-self: end;
   flex-shrink: 0;
 }
 .icon-btn, .text-btn {
@@ -292,6 +296,14 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
 
 /* ── Load more ── */
 .load-more-wrap { margin-top: 28px; text-align: center; }
+.scroll-sentinel {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13px;
+}
 .load-more {
   padding: 10px 28px;
   border-radius: var(--r);
@@ -338,19 +350,69 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
 .back-btn:hover { border-color: var(--border2); color: var(--text); }
 
 /* ── Detail view ── */
+.detail-page {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 104px);
+}
+.detail-backdrop {
+  position: fixed;
+  inset: -56px;
+  transform: translateY(calc(var(--detail-shift, 0px) * -0.05));
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px) saturate(1.12);
+  opacity: .62;
+  z-index: -1;
+  pointer-events: none;
+}
+.detail-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 35% 20%, rgba(255,255,255,0.08), transparent 28%),
+    linear-gradient(180deg, rgba(9,9,11,0.24), rgba(9,9,11,0.66) 55%, var(--bg) 100%);
+}
+.detail-content { position: relative; z-index: 1; }
 .detail-layout {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 32px;
   align-items: start;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: var(--r);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.13), rgba(255,255,255,0.045) 42%, rgba(255,255,255,0.08)),
+    rgba(17,17,19,0.56);
+  backdrop-filter: blur(24px) saturate(1.22);
+  -webkit-backdrop-filter: blur(24px) saturate(1.22);
+  box-shadow: 0 28px 90px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.18);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.detail-layout::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 18% 0%, rgba(255,255,255,0.14), transparent 30%);
+  pointer-events: none;
 }
 .detail-poster {
+  position: relative;
+  z-index: 1;
   border-radius: var(--r);
   overflow: hidden;
   aspect-ratio: 2/3;
   background: var(--surface2);
 }
 .detail-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.detail-main {
+  position: relative;
+  z-index: 1;
+}
 
 .detail-title { font-size: 24px; font-weight: 700; line-height: 1.2; margin-bottom: 6px; }
 .detail-original { color: var(--muted); font-size: 15px; margin-bottom: 16px; }
@@ -480,6 +542,25 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
 }
 .form-grid input:focus { border-color: var(--border2); }
 .form-error { min-height: 18px; color: var(--red); font-size: 12px; }
+.profile-list { display: grid; gap: 10px; margin-bottom: 14px; }
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface2);
+  padding: 10px 12px;
+}
+.profile-row span { color: var(--muted); font-size: 12px; }
+.profile-row strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .admin-grid {
   display: grid;
@@ -578,11 +659,9 @@ td select {
   .detail-poster { max-width: 220px; }
 }
 @media (max-width: 600px) {
-  header { gap: 10px; }
-  .search-wrap { max-width: none; }
+  header { grid-template-columns: auto 1fr auto; gap: 10px; height: auto; min-height: 56px; padding-top: 10px; padding-bottom: 10px; }
+  .search-wrap { grid-column: 1 / -1; grid-row: 2; max-width: none; }
   .brand span { display: none; }
-  .provider-tabs { order: 3; width: 100%; overflow-x: auto; padding-bottom: 4px; }
-  header { height: auto; min-height: 56px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
   .header-actions { margin-left: auto; }
   .user-chip { max-width: 92px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
@@ -606,21 +685,17 @@ td select {
         <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
         <path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <input type="text" id="searchInput" placeholder="Поиск фильмов..." autocomplete="off">
-    </div>
-
-    <div class="provider-tabs" id="providerTabs">
-      <button class="active" disabled>Alloha</button>
+      <input type="text" id="searchInput" placeholder="Название, жанр, год..." autocomplete="off">
     </div>
 
     <div class="header-actions" id="headerActions">
-      <button class="icon-btn" title="Избранное" onclick="renderLibrary('favorites')">
+      <button class="icon-btn" title="Избранное" onclick="goLibrary('favorites')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.6-9.4-9.1C.6 8.1 2.9 4 7 4c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 4.1 0 6.4 4.1 4.4 7.9C19 16.4 12 21 12 21z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </button>
-      <button class="icon-btn" title="История" onclick="renderLibrary('history')">
+      <button class="icon-btn" title="История" onclick="goLibrary('history')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
-      <button class="text-btn" id="adminBtn" style="display:none" onclick="renderAdmin()">Админ</button>
+      <button class="text-btn" id="adminBtn" style="display:none" onclick="goAdmin()">Админ</button>
       <button class="text-btn" id="loginBtn" onclick="showAuthModal('login')">Войти</button>
     </div>
   </header>
@@ -643,10 +718,32 @@ td select {
       </div>
       <form class="form-grid" onsubmit="submitAuth(event)">
         <input id="authLogin" autocomplete="username" placeholder="Логин">
+        <input id="authEmail" type="email" autocomplete="email" placeholder="Email">
         <input id="authPassword" type="password" autocomplete="current-password" placeholder="Пароль">
         <div class="form-error" id="authError"></div>
         <button class="apply-btn" id="authSubmit" type="submit">Войти</button>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="profileModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title">Личный кабинет</div>
+        <button class="icon-btn" onclick="hideProfileModal()" title="Закрыть">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="profile-list">
+        <div class="profile-row"><span>Логин</span><strong id="profileLogin">-</strong></div>
+        <div class="profile-row"><span>Email</span><strong id="profileEmail">-</strong></div>
+        <div class="profile-row"><span>Роль</span><strong id="profileRole">-</strong></div>
+      </div>
+      <div class="card-actions">
+        <button onclick="renderLibrary('favorites'); hideProfileModal()">Избранное</button>
+        <button onclick="renderLibrary('history'); hideProfileModal()">История</button>
+        <button onclick="logout()">Выйти</button>
+      </div>
     </div>
   </div>
 </div>
@@ -671,15 +768,18 @@ const state = {
   authMode: 'login',
   libraryType: 'favorites',
   adminTab: 'overview',
+  loading: false,
+  hasMore: true,
+  scrollObserver: null,
 }
 
 const COLLECTIONS = [
-  { type: 'TOP_POPULAR_ALL',   label: 'Популярное' },
-  { type: 'TOP_250_MOVIES',    label: 'Топ 250 фильмов' },
-  { type: 'TOP_250_TV_SHOWS',  label: 'Топ 250 сериалов' },
-  { type: 'POPULAR_SERIES',    label: 'Популярные сериалы' },
-  { type: 'FAMILY',            label: 'Семейное' },
-  { type: 'COMICS_THEME',      label: 'Комиксы' },
+  { type: 'TOP_POPULAR_ALL',   label: 'Популярное', order: 'NUM_VOTE' },
+  { type: 'TOP_250_MOVIES',    label: 'Топ 250 фильмов', order: 'RATING', filmType: 'FILM' },
+  { type: 'TOP_250_TV_SHOWS',  label: 'Топ 250 сериалов', order: 'RATING', filmType: 'TV_SERIES' },
+  { type: 'POPULAR_SERIES',    label: 'Популярные сериалы', order: 'NUM_VOTE', filmType: 'TV_SERIES' },
+  { type: 'FAMILY',            label: 'Семейное', order: 'NUM_VOTE', genreNames: ['семейный', 'семейное'] },
+  { type: 'COMICS_THEME',      label: 'Комиксы', order: 'NUM_VOTE' },
 ]
 
 const TYPES = [
@@ -699,6 +799,72 @@ const ORDERS = [
 // ── Utils ──────────────────────────────────────────────────────────────────
 function esc(v) {
   return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function filterBarHTML(applyFn, resetFn) {
+  const genreOpts = state.genres.map(g => `<option value="${esc(g.id)}" ${state.filters.genre == g.id ? 'selected' : ''}>${esc(g.genre)}</option>`).join('')
+  const typeOpts = TYPES.map(t => `<option value="${esc(t.val)}" ${state.filters.type === t.val ? 'selected' : ''}>${esc(t.label)}</option>`).join('')
+  const orderOpts = ORDERS.map(o => `<option value="${esc(o.val)}" ${state.filters.order === o.val ? 'selected' : ''}>${esc(o.label)}</option>`).join('')
+  return `
+    <div class="filter-bar">
+      <select id="f-genre" onchange="onFilterChange()">
+        <option value="">Жанр</option>
+        ${genreOpts}
+      </select>
+      <select id="f-type" onchange="onFilterChange()">
+        ${typeOpts}
+      </select>
+      <select id="f-order" onchange="onFilterChange()">
+        ${orderOpts}
+      </select>
+      <label>Год от</label>
+      <input type="number" id="f-yearFrom" placeholder="1990" min="1900" max="2035" value="${esc(state.filters.yearFrom)}" onchange="onFilterChange()">
+      <label>до</label>
+      <input type="number" id="f-yearTo" placeholder="2026" min="1900" max="2035" value="${esc(state.filters.yearTo)}" onchange="onFilterChange()">
+      <button class="apply-btn" onclick="${applyFn}()">Применить</button>
+      <button class="reload-btn" onclick="${resetFn}()">Сбросить</button>
+    </div>
+  `
+}
+
+function disconnectInfiniteScroll() {
+  if (state.scrollObserver) state.scrollObserver.disconnect()
+  state.scrollObserver = null
+}
+
+function setupInfiniteScroll(loader) {
+  disconnectInfiniteScroll()
+  const node = document.getElementById('scrollSentinel')
+  if (!node) return
+  state.scrollObserver = new IntersectionObserver(entries => {
+    if (entries.some(e => e.isIntersecting)) requestAnimationFrame(loader)
+  }, { rootMargin: '500px 0px' })
+  requestAnimationFrame(() => state.scrollObserver?.observe(node))
+}
+
+function updateScrollSentinel() {
+  const node = document.getElementById('scrollSentinel')
+  if (!node) return
+  node.textContent = state.loading ? 'Загрузка...' : (state.hasMore ? '' : 'Больше нет')
+}
+
+function nearPageBottom() {
+  const doc = document.documentElement
+  return window.innerHeight + window.scrollY >= doc.scrollHeight - 700
+}
+
+function maybeLoadMore() {
+  if (state.loading || !state.hasMore) return
+  if (!nearPageBottom()) return
+  if (state.view === 'home') loadMoreHome()
+  if (state.view === 'search') loadMoreSearch()
+}
+
+function scheduleAutoLoad() {
+  requestAnimationFrame(() => {
+    updateScrollSentinel()
+    maybeLoadMore()
+  })
 }
 
 async function api(url) {
@@ -726,7 +892,7 @@ async function apiJSON(url, body, method = 'POST') {
 // ── Provider ────────────────────────────────────────────────────────────────
 function setProvider(p) {
   state.provider = p
-  document.querySelectorAll('#providerTabs button').forEach(btn => btn.classList.toggle('active', btn.dataset.provider === p))
+  document.querySelectorAll('#detailProviderTabs button').forEach(btn => btn.classList.toggle('active', btn.dataset.provider === p))
   if (state.view === 'detail' && state.selectedKpId) loadPlayer(state.selectedKpId)
 }
 
@@ -739,7 +905,7 @@ async function loadProviders() {
 }
 
 function renderProviderTabs() {
-  const wrap = document.getElementById('providerTabs')
+  const wrap = document.getElementById('detailProviderTabs')
   if (!wrap) return
   wrap.innerHTML = state.providers.map(p => `
     <button data-provider="${esc(p.id)}" class="${p.id === state.provider ? 'active' : ''}" onclick="setProvider('${esc(p.id)}')">${esc(p.label)}</button>
@@ -754,6 +920,8 @@ function showAuthModal(mode = 'login') {
   document.getElementById('authSubmit').textContent = mode === 'login' ? 'Войти' : 'Создать аккаунт'
   document.getElementById('authLoginTab').classList.toggle('active', mode === 'login')
   document.getElementById('authRegisterTab').classList.toggle('active', mode === 'register')
+  document.getElementById('authLogin').style.display = mode === 'register' ? '' : 'none'
+  document.getElementById('authPassword').autocomplete = mode === 'login' ? 'current-password' : 'new-password'
   document.getElementById('authError').textContent = ''
 }
 
@@ -764,11 +932,13 @@ function hideAuthModal() {
 async function submitAuth(e) {
   e.preventDefault()
   const login = document.getElementById('authLogin').value.trim()
+  const email = document.getElementById('authEmail').value.trim()
   const password = document.getElementById('authPassword').value.trim()
   const error = document.getElementById('authError')
   error.textContent = ''
   try {
-    const data = await apiJSON(`/api/auth/${state.authMode}`, { login, password })
+    const body = state.authMode === 'register' ? { login, email, password } : { email, password }
+    const data = await apiJSON(`/api/auth/${state.authMode}`, body)
     state.token = data.token || ''
     state.user = data.user || null
     if (state.token) localStorage.setItem('cinema.jwt', state.token)
@@ -797,8 +967,21 @@ function logout() {
   state.token = ''
   state.user = null
   localStorage.removeItem('cinema.jwt')
+  hideProfileModal()
   updateHeaderAuth()
-  if (state.view === 'admin') goHome()
+  if (state.view === 'admin' || state.view === 'library') goHome()
+}
+
+function showProfileModal() {
+  if (!state.user) { showAuthModal('login'); return }
+  document.getElementById('profileLogin').textContent = state.user.login || '-'
+  document.getElementById('profileEmail').textContent = state.user.email || '-'
+  document.getElementById('profileRole').textContent = state.user.role || '-'
+  document.getElementById('profileModal').classList.add('active')
+}
+
+function hideProfileModal() {
+  document.getElementById('profileModal')?.classList.remove('active')
 }
 
 function updateHeaderAuth() {
@@ -809,8 +992,8 @@ function updateHeaderAuth() {
   if (state.user) {
     loginBtn.textContent = state.user.login
     loginBtn.classList.add('user-chip')
-    loginBtn.onclick = logout
-    loginBtn.title = 'Выйти'
+    loginBtn.onclick = showProfileModal
+    loginBtn.title = 'Личный кабинет'
   } else {
     loginBtn.textContent = 'Войти'
     loginBtn.classList.remove('user-chip')
@@ -821,6 +1004,7 @@ function updateHeaderAuth() {
 
 // ── Routing ─────────────────────────────────────────────────────────────────
 function goHome() {
+  disconnectInfiniteScroll()
   state.view = 'home'
   document.getElementById('searchInput').value = ''
   state.query = ''
@@ -828,6 +1012,7 @@ function goHome() {
 }
 
 function goSearch(q) {
+  disconnectInfiniteScroll()
   state.prevView = state.view === 'detail' ? state.prevView : state.view
   state.view = 'search'
   state.query = q
@@ -836,6 +1021,7 @@ function goSearch(q) {
 }
 
 function goDetail(kpId) {
+  disconnectInfiniteScroll()
   state.prevView = state.view
   state.view = 'detail'
   state.selectedKpId = kpId
@@ -843,33 +1029,52 @@ function goDetail(kpId) {
 }
 
 function goLibrary(type) {
+  disconnectInfiniteScroll()
   state.prevView = state.view
-  renderLibrary(type)
+  renderLibrary(type, true)
+}
+
+function goAdmin() {
+  disconnectInfiniteScroll()
+  state.prevView = state.view
+  renderAdmin('overview', true)
 }
 
 function goBack() {
-  if (state.prevView === 'search') {
+  disconnectInfiniteScroll()
+  const prev = state.prevView
+  state.prevView = 'home'
+  if (prev === 'search') {
     state.view = 'search'
     renderSearch(true)
-  } else {
-    goHome()
+    return
   }
+  if (prev === 'library') {
+    renderLibrary(state.libraryType, true)
+    return
+  }
+  if (prev === 'admin') {
+    renderAdmin(state.adminTab, true)
+    return
+  }
+  goHome()
 }
 
 // ── Home ────────────────────────────────────────────────────────────────────
 function renderHome() {
+  disconnectInfiniteScroll()
   const m = document.getElementById('main')
   m.innerHTML = `
     <div class="tabs" id="collectionTabs"></div>
+    ${filterBarHTML('applyHomeFilters', 'resetHomeFilters')}
     <div id="gridWrap">
       ${skeletonGrid(12)}
     </div>
-    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
-      <button class="load-more" id="loadMoreBtn" onclick="loadMoreCollection()">Загрузить ещё</button>
-    </div>
+    <div class="scroll-sentinel" id="scrollSentinel"></div>
   `
   renderCollectionTabs()
-  fetchCollection()
+  setupInfiniteScroll(loadMoreHome)
+  fetchHome()
 }
 
 function renderCollectionTabs() {
@@ -891,14 +1096,11 @@ async function fetchCollection(append = false) {
     } else {
       state.items = items
     }
+    if (state.view !== 'home') return
     renderGrid(state.items, 'gridWrap')
-    const lmw = document.getElementById('loadMoreWrap')
-    const lmb = document.getElementById('loadMoreBtn')
-    if (lmw && lmb) {
-      lmw.style.display = items.length >= 20 ? '' : 'none'
-      lmb.disabled = false
-    }
+    state.hasMore = items.length >= 20
   } catch (e) {
+    state.hasMore = false
     document.getElementById('gridWrap').innerHTML = `<div class="state-box"><strong>Ошибка загрузки</strong>${esc(e.message)}</div>`
   }
 }
@@ -908,52 +1110,105 @@ function switchCollection(type) {
   state.items = []
   renderCollectionTabs()
   document.getElementById('gridWrap').innerHTML = skeletonGrid(12)
-  fetchCollection()
+  fetchHome()
 }
 
-function loadMoreCollection() {
-  const btn = document.getElementById('loadMoreBtn')
-  if (btn) btn.disabled = true
+function applyHomeFilters() {
+  onFilterChange()
+  state.items = []
+  state.page = 1
+  document.getElementById('gridWrap').innerHTML = skeletonGrid(12)
+  fetchHome()
+}
+
+function resetHomeFilters() {
+  state.filters = { genre: '', type: '', order: 'RATING', yearFrom: '', yearTo: '' }
+  renderHome()
+}
+
+function loadMoreHome() {
+  if (state.loading || !state.hasMore || state.view !== 'home') return
   state.page++
-  fetchCollection(true)
+  fetchHome(true)
+}
+
+function homeFiltersActive() {
+  return Boolean(state.filters.genre || state.filters.type || state.filters.yearFrom || state.filters.yearTo || state.filters.order !== 'RATING')
+}
+
+async function fetchHome(append = false) {
+  if (state.loading) return
+  state.loading = true
+  updateScrollSentinel()
+  if (!append) {
+    state.page = 1
+    state.hasMore = true
+  }
+  try {
+    if (homeFiltersActive()) {
+      await fetchHomeFiltered(append)
+    } else {
+      await fetchCollection(append)
+    }
+  } catch (e) {
+    state.hasMore = false
+    document.getElementById('gridWrap').innerHTML = `<div class="state-box"><strong>Ошибка загрузки</strong>${esc(e.message)}</div>`
+  } finally {
+    state.loading = false
+    updateScrollSentinel()
+    scheduleAutoLoad()
+  }
+}
+
+async function fetchHomeFiltered(append = false) {
+  const params = buildHomeParams()
+  const data = await api('/api/films?' + params.toString())
+  const items = data.items || []
+  state.items = append ? [...state.items, ...items] : items
+  state.totalPages = data.totalPages || 1
+  state.hasMore = state.page < state.totalPages && items.length > 0
+  if (state.view !== 'home') return
+  renderGrid(state.items, 'gridWrap')
+}
+
+function buildHomeParams() {
+  const params = new URLSearchParams()
+  const coll = COLLECTIONS.find(c => c.type === state.collection) || {}
+  params.set('page', state.page)
+  const order = state.filters.order === 'RATING' && coll.order ? coll.order : (state.filters.order || coll.order || 'RATING')
+  params.set('order', order)
+  const filmType = state.filters.type || coll.filmType || ''
+  if (filmType) params.set('type', filmType)
+  const genre = state.filters.genre || genreIDByNames(coll.genreNames || [])
+  if (genre) params.set('genres', genre)
+  if (state.filters.yearFrom) params.set('yearFrom', state.filters.yearFrom)
+  if (state.filters.yearTo) params.set('yearTo', state.filters.yearTo)
+  return params
 }
 
 // ── Search ───────────────────────────────────────────────────────────────────
 function renderSearch(restore = false) {
+  disconnectInfiniteScroll()
   const m = document.getElementById('main')
-  const genreOpts = state.genres.map(g => `<option value="${esc(g.id)}" ${state.filters.genre == g.id ? 'selected' : ''}>${esc(g.genre)}</option>`).join('')
-  const typeOpts = TYPES.map(t => `<option value="${esc(t.val)}" ${state.filters.type === t.val ? 'selected' : ''}>${esc(t.label)}</option>`).join('')
-  const orderOpts = ORDERS.map(o => `<option value="${esc(o.val)}" ${state.filters.order === o.val ? 'selected' : ''}>${esc(o.label)}</option>`).join('')
-
   m.innerHTML = `
+    <button class="back-btn" onclick="goHome()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Назад
+    </button>
     <div class="page-title">
       Результаты поиска
       <small id="resultsCount"></small>
     </div>
-    <div class="filter-bar">
-      <select id="f-genre" onchange="onFilterChange()">
-        <option value="">Жанр</option>
-        ${genreOpts}
-      </select>
-      <select id="f-type" onchange="onFilterChange()">
-        ${typeOpts}
-      </select>
-      <select id="f-order" onchange="onFilterChange()">
-        ${orderOpts}
-      </select>
-      <label>Год от</label>
-      <input type="number" id="f-yearFrom" placeholder="1990" min="1900" max="2030" value="${esc(state.filters.yearFrom)}" onchange="onFilterChange()">
-      <label>до</label>
-      <input type="number" id="f-yearTo" placeholder="2025" min="1900" max="2030" value="${esc(state.filters.yearTo)}" onchange="onFilterChange()">
-      <button class="apply-btn" onclick="applySearch()">Применить</button>
-    </div>
+    ${filterBarHTML('applySearch', 'resetSearchFilters')}
     <div id="gridWrap">${skeletonGrid(12)}</div>
-    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
-      <button class="load-more" id="loadMoreBtn" onclick="loadMoreSearch()">Загрузить ещё</button>
-    </div>
+    <div class="scroll-sentinel" id="scrollSentinel"></div>
   `
+  setupInfiniteScroll(loadMoreSearch)
   if (!restore) applySearch()
-  else renderGrid(state.items, 'gridWrap', state.items.length)
+  else {
+    renderGrid(state.items, 'gridWrap')
+    updateScrollSentinel()
+  }
 }
 
 function onFilterChange() {
@@ -964,39 +1219,59 @@ function onFilterChange() {
   state.filters.yearTo  = document.getElementById('f-yearTo')?.value || ''
 }
 
+function genreIDByNames(names) {
+  const set = (names || []).map(v => String(v).toLowerCase())
+  const found = state.genres.find(g => set.includes(String(g.genre || '').toLowerCase()))
+  return found ? found.id : ''
+}
+
+function parseSmartQuery(raw) {
+  let text = String(raw || '').toLowerCase()
+  const years = [...text.matchAll(/\b(19\d{2}|20[0-3]\d)\b/g)].map(m => m[1])
+  const out = { keyword: '', genre: '', type: '', yearFrom: '', yearTo: '' }
+  if (years.length === 1) {
+    out.yearFrom = years[0]
+    out.yearTo = years[0]
+  } else if (years.length > 1) {
+    out.yearFrom = years[0]
+    out.yearTo = years[1]
+  }
+  text = text.replace(/\b(19\d{2}|20[0-3]\d)\b/g, ' ')
+
+  if (/(сериал|сериалы|series)/i.test(text)) out.type = 'TV_SERIES'
+  if (/(фильм|фильмы|movie|film)/i.test(text)) out.type = 'FILM'
+  text = text.replace(/\b(сериал|сериалы|series|фильм|фильмы|movie|film|года|год|топ|лучшие|лучшее|популярные|популярное|новые|новинки)\b/gi, ' ')
+
+  const genre = state.genres
+    .filter(g => g.genre)
+    .sort((a, b) => String(b.genre).length - String(a.genre).length)
+    .find(g => text.includes(String(g.genre).toLowerCase()))
+  if (genre) {
+    out.genre = genre.id
+    text = text.replace(String(genre.genre).toLowerCase(), ' ')
+  }
+
+  out.keyword = text.replace(/[^\p{L}\p{N}\s-]/gu, ' ').replace(/\s+/g, ' ').trim()
+  return out
+}
+
 async function applySearch() {
   onFilterChange()
   state.page = 1
   state.items = []
+  state.hasMore = true
   document.getElementById('gridWrap').innerHTML = skeletonGrid(12)
-
-  const params = new URLSearchParams()
-  if (state.query) {
-    // keyword search — simpler endpoint
-    params.set('keyword', state.query)
-    if (state.filters.type) params.set('type', state.filters.type)
-    if (state.filters.order) params.set('order', state.filters.order)
-    if (state.filters.yearFrom) params.set('yearFrom', state.filters.yearFrom)
-    if (state.filters.yearTo) params.set('yearTo', state.filters.yearTo)
-    if (state.filters.genre) params.set('genres', state.filters.genre)
-    params.set('page', state.page)
-    await fetchFilmsFilter(params)
-  } else {
-    // filter browse without keyword
-    if (state.filters.type) params.set('type', state.filters.type)
-    if (state.filters.order) params.set('order', state.filters.order)
-    if (state.filters.yearFrom) params.set('yearFrom', state.filters.yearFrom)
-    if (state.filters.yearTo) params.set('yearTo', state.filters.yearTo)
-    if (state.filters.genre) params.set('genres', state.filters.genre)
-    params.set('page', state.page)
-    await fetchFilmsFilter(params)
-  }
+  await fetchFilmsFilter(buildSearchParams())
 }
 
 async function fetchFilmsFilter(params, append = false) {
+  if (state.loading) return
+  state.loading = true
+  updateScrollSentinel()
   try {
     const data = await api('/api/films?' + params.toString())
     const items = data.items || []
+    if (state.view !== 'search') return
     if (append) {
       state.items = [...state.items, ...items]
     } else {
@@ -1006,89 +1281,113 @@ async function fetchFilmsFilter(params, append = false) {
     const count = document.getElementById('resultsCount')
     if (count) count.textContent = data.total ? `${data.total} результатов` : `${state.items.length} результатов`
     renderGrid(state.items, 'gridWrap')
-    const lmw = document.getElementById('loadMoreWrap')
-    const lmb = document.getElementById('loadMoreBtn')
-    if (lmw && lmb) {
-      lmw.style.display = (state.page < state.totalPages && items.length > 0) ? '' : 'none'
-      lmb.disabled = false
-    }
+    state.hasMore = state.page < state.totalPages && items.length > 0
   } catch (e) {
     // fallback: keyword-only via /api/search
     if (state.query) {
       try {
         const data = await api('/api/search?q=' + encodeURIComponent(state.query))
+        if (state.view !== 'search') return
         state.items = data.items || []
         const count = document.getElementById('resultsCount')
         if (count) count.textContent = `${state.items.length} результатов`
         renderGrid(state.items, 'gridWrap')
-        const lmw = document.getElementById('loadMoreWrap')
-        if (lmw) lmw.style.display = 'none'
+        state.hasMore = false
         return
       } catch (_) {}
     }
+    state.hasMore = false
     document.getElementById('gridWrap').innerHTML = `<div class="state-box"><strong>Ошибка</strong>${esc(e.message)}</div>`
+  } finally {
+    state.loading = false
+    updateScrollSentinel()
+    scheduleAutoLoad()
   }
 }
 
 function loadMoreSearch() {
-  const btn = document.getElementById('loadMoreBtn')
-  if (btn) btn.disabled = true
+  if (state.loading || !state.hasMore || state.view !== 'search') return
   state.page++
   onFilterChange()
+  fetchFilmsFilter(buildSearchParams(), true)
+}
+
+function resetSearchFilters() {
+  state.filters = { genre: '', type: '', order: 'RATING', yearFrom: '', yearTo: '' }
+  renderSearch()
+}
+
+function buildSearchParams() {
+  const smart = parseSmartQuery(state.query)
   const params = new URLSearchParams()
-  if (state.query) params.set('keyword', state.query)
-  if (state.filters.type) params.set('type', state.filters.type)
-  if (state.filters.order) params.set('order', state.filters.order)
-  if (state.filters.yearFrom) params.set('yearFrom', state.filters.yearFrom)
-  if (state.filters.yearTo) params.set('yearTo', state.filters.yearTo)
-  if (state.filters.genre) params.set('genres', state.filters.genre)
   params.set('page', state.page)
-  fetchFilmsFilter(params, true)
+  const keyword = smart.keyword || state.query
+  if (keyword) params.set('keyword', keyword)
+  const genre = state.filters.genre || smart.genre
+  const type = state.filters.type || smart.type
+  const yearFrom = state.filters.yearFrom || smart.yearFrom
+  const yearTo = state.filters.yearTo || smart.yearTo
+  if (genre) params.set('genres', genre)
+  if (type) params.set('type', type)
+  if (state.filters.order) params.set('order', state.filters.order)
+  if (yearFrom) params.set('yearFrom', yearFrom)
+  if (yearTo) params.set('yearTo', yearTo)
+  return params
 }
 
 // ── Detail ───────────────────────────────────────────────────────────────────
 function renderDetail(kpId) {
   const m = document.getElementById('main')
   m.innerHTML = `
-    <button class="back-btn" onclick="goBack()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Назад
-    </button>
-    <div class="detail-layout">
-      <div class="detail-poster" id="detailPoster">
-        <div class="sk-poster skeleton" style="height:100%"></div>
-      </div>
-      <div>
-        <div class="detail-title" id="detailTitle">Загрузка...</div>
-        <div class="detail-original" id="detailOriginal"></div>
-        <div class="detail-badges" id="detailBadges"></div>
-        <div class="detail-desc" id="detailDesc">Загрузка описания...</div>
-        <div class="player-section">
-          <div class="player-header">
-            <div class="player-title">Плеер</div>
-            <div class="player-controls">
-              <span class="status-badge loading" id="playerStatus">Ожидание</span>
-              <button class="reload-btn" onclick="addFavorite(${kpId})">В избранное</button>
-              <button class="reload-btn" onclick="reloadPlayer()">Перезагрузить</button>
-            </div>
+    <div class="detail-page">
+      <div class="detail-backdrop" id="detailBackdrop"></div>
+      <div class="detail-content">
+        <button class="back-btn" onclick="goBack()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Назад
+        </button>
+        <div class="detail-layout">
+          <div class="detail-poster" id="detailPoster">
+            <div class="sk-poster skeleton" style="height:100%"></div>
           </div>
-          <div class="player-shell" id="playerShell">
-            <div class="player-placeholder" id="playerPlaceholder">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.4"/><path d="M10 8l6 4-6 4V8z" fill="currentColor"/></svg>
-              <strong>Нажмите для загрузки</strong>
-              <p>Фильм будет доступен через выбранного провайдера</p>
-              <button onclick="loadPlayer(${kpId})">Загрузить плеер</button>
+          <div class="detail-main">
+            <div class="detail-title" id="detailTitle">Загрузка...</div>
+            <div class="detail-original" id="detailOriginal"></div>
+            <div class="detail-badges" id="detailBadges"></div>
+            <div class="detail-desc" id="detailDesc">Загрузка описания...</div>
+            <div class="player-section">
+              <div class="player-header">
+                <div>
+                  <div class="player-title">Плеер</div>
+                  <div class="provider-tabs detail-providers" id="detailProviderTabs"></div>
+                </div>
+                <div class="player-controls">
+                  <span class="status-badge loading" id="playerStatus">Ожидание</span>
+                  <button class="reload-btn" onclick="addFavorite(${kpId})">В избранное</button>
+                  <button class="reload-btn" onclick="reloadPlayer()">Перезагрузить</button>
+                </div>
+              </div>
+              <div class="player-shell" id="playerShell">
+                <div class="player-placeholder" id="playerPlaceholder">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.4"/><path d="M10 8l6 4-6 4V8z" fill="currentColor"/></svg>
+                  <strong>Нажмите для загрузки</strong>
+                  <p>Фильм будет доступен через выбранного провайдера</p>
+                  <button onclick="loadPlayer(${kpId})">Загрузить плеер</button>
+                </div>
+                <div class="player-loading" id="playerLoading">
+                  <div class="spinner"></div>
+                  <span style="color:var(--muted);font-size:13px">Загружаем плеер...</span>
+                </div>
+                <iframe id="playerFrame" allowfullscreen allow="autoplay; fullscreen; encrypted-media"></iframe>
+              </div>
             </div>
-            <div class="player-loading" id="playerLoading">
-              <div class="spinner"></div>
-              <span style="color:var(--muted);font-size:13px">Загружаем плеер...</span>
-            </div>
-            <iframe id="playerFrame" allowfullscreen allow="autoplay; fullscreen; encrypted-media"></iframe>
           </div>
         </div>
       </div>
     </div>
   `
+  renderProviderTabs()
+  updateDetailParallax()
   fetchDetail(kpId)
 }
 
@@ -1115,7 +1414,19 @@ async function fetchDetail(kpId) {
 
     if (descEl) descEl.textContent = d.description || d.slogan || 'Описание недоступно'
     if (posterEl && d.poster) posterEl.innerHTML = `<img src="${esc(proxyImg(d.poster))}" alt="${esc(d.title)}">`
+    if (d.poster) setDetailBackdrop(proxyImg(d.backdrop || d.poster))
   } catch (_) {}
+}
+
+function setDetailBackdrop(src) {
+  const el = document.getElementById('detailBackdrop')
+  if (el && src) el.style.backgroundImage = `url("${src}")`
+}
+
+function updateDetailParallax() {
+  const page = document.querySelector('.detail-page')
+  if (!page) return
+  page.style.setProperty('--detail-shift', String(window.scrollY || 0) + 'px')
 }
 
 async function loadPlayer(kpId) {
@@ -1157,6 +1468,7 @@ function reloadPlayer() {
 }
 
 async function addFavorite(kpId) {
+  if (!state.user) { showAuthModal('login'); return }
   try {
     await apiJSON('/api/library/favorites', { kpId, provider: state.provider })
     const status = document.getElementById('playerStatus')
@@ -1168,11 +1480,17 @@ async function addFavorite(kpId) {
 }
 
 // ── Library ─────────────────────────────────────────────────────────────────
-async function renderLibrary(type = 'favorites') {
+async function renderLibrary(type = 'favorites', preservePrev = false) {
+  disconnectInfiniteScroll()
+  if (!preservePrev && state.view !== 'library') state.prevView = state.view
   state.view = 'library'
   state.libraryType = type
   const m = document.getElementById('main')
   m.innerHTML = `
+    <button class="back-btn" onclick="goBack()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Назад
+    </button>
     <div class="library-toolbar">
       <div class="section-tabs">
         <button class="tab ${type === 'favorites' ? 'active' : ''}" onclick="renderLibrary('favorites')">Избранное</button>
@@ -1182,6 +1500,10 @@ async function renderLibrary(type = 'favorites') {
     </div>
     <div id="libraryWrap">${skeletonGrid(8)}</div>
   `
+  if (!state.user) {
+    document.getElementById('libraryWrap').innerHTML = `<div class="state-box"><strong>Нужен вход</strong>Личная ${type === 'favorites' ? 'подборка' : 'история'} доступна после авторизации</div>`
+    return
+  }
   try {
     const data = await api(`/api/library/${type}`)
     renderLibraryGrid(data.items || [], type)
@@ -1204,18 +1526,15 @@ function renderLibraryCard(item, type) {
   const meta = [item.year, providerName(item.provider), item.timestamp ? new Date(item.timestamp).toLocaleDateString('ru-RU') : ''].filter(Boolean).join(' · ')
   const src = proxyImg(item.poster)
   return `
-    <article class="card">
-      <div class="card-poster" onclick="goDetail(${item.kpId})">
+    <article class="card" onclick="goDetail(${item.kpId})">
+      <div class="card-poster">
         ${src ? `<img src="${esc(src)}" alt="${esc(item.title)}" loading="lazy">` : ''}
         ${item.rating ? `<span class="card-rating">★ ${esc(item.rating)}</span>` : ''}
       </div>
       <div class="card-info">
-        <div class="card-title" onclick="goDetail(${item.kpId})">${esc(item.title)}</div>
+        <div class="card-title">${esc(item.title)}</div>
         <div class="card-meta">${esc(meta)}</div>
-        <div class="card-actions">
-          <button onclick="goDetail(${item.kpId})">Открыть</button>
-          ${type === 'favorites' ? `<button onclick="removeFavorite(${item.kpId})">Убрать</button>` : ''}
-        </div>
+        ${type === 'favorites' ? `<div class="card-actions"><button onclick="removeFavorite(event, ${item.kpId})">Убрать</button></div>` : ''}
       </div>
     </article>
   `
@@ -1225,7 +1544,8 @@ function providerName(id) {
   return (state.providers.find(p => p.id === id) || {}).label || id || ''
 }
 
-async function removeFavorite(kpId) {
+async function removeFavorite(event, kpId) {
+  event?.stopPropagation()
   try {
     await fetch(`/api/library/favorites?kp=${encodeURIComponent(kpId)}`, {
       method: 'DELETE',
@@ -1246,11 +1566,17 @@ async function clearHistory() {
 }
 
 // ── Admin ───────────────────────────────────────────────────────────────────
-async function renderAdmin(tab = state.adminTab || 'overview') {
+async function renderAdmin(tab = state.adminTab || 'overview', preservePrev = false) {
+  disconnectInfiniteScroll()
+  if (!preservePrev && state.view !== 'admin') state.prevView = state.view
   state.view = 'admin'
   state.adminTab = tab
   const m = document.getElementById('main')
   m.innerHTML = `
+    <button class="back-btn" onclick="goBack()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Назад
+    </button>
     <div class="library-toolbar">
       <div class="section-tabs">
         <button class="tab ${tab === 'overview' ? 'active' : ''}" onclick="renderAdmin('overview')">Обзор</button>
@@ -1296,6 +1622,7 @@ async function renderAdminUsers() {
       <tr>
         <td>${esc(u.id)}</td>
         <td>${esc(u.login)}</td>
+        <td>${esc(u.email || '')}</td>
         <td>
           <select onchange="changeUserRole(${u.id}, this.value)">
             <option value="user" ${u.role === 'user' ? 'selected' : ''}>user</option>
@@ -1308,8 +1635,8 @@ async function renderAdminUsers() {
     `).join('')
     document.getElementById('adminWrap').innerHTML = `
       <div class="table-wrap"><table>
-        <thead><tr><th>ID</th><th>Логин</th><th>Роль</th><th>Создан</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5">Нет пользователей</td></tr>'}</tbody>
+        <thead><tr><th>ID</th><th>Логин</th><th>Email</th><th>Роль</th><th>Создан</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6">Нет пользователей</td></tr>'}</tbody>
       </table></div>
     `
   } catch (e) {
@@ -1434,12 +1761,16 @@ document.getElementById('searchInput').addEventListener('keydown', e => {
 })
 
 document.getElementById('brandBtn').addEventListener('click', goHome)
+window.addEventListener('scroll', updateDetailParallax, { passive: true })
+window.addEventListener('scroll', maybeLoadMore, { passive: true })
+window.addEventListener('resize', scheduleAutoLoad)
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-loadMe()
-loadProviders()
-loadFilters()
-renderHome()
+async function boot() {
+  await Promise.all([loadMe(), loadProviders(), loadFilters()])
+  renderHome()
+}
+boot()
 </script>
 </body>
 </html>
