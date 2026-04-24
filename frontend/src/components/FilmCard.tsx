@@ -24,6 +24,28 @@ export const FilmCard = memo(function FilmCard({ film, onClick, onRemove, showRe
       <div className="card-poster">
         {src && <img src={src} alt={film.title} loading="lazy" decoding="async" />}
         {film.rating && <span className="card-rating">★ {film.rating}</span>}
+        {hasTooltip && (
+          <div className="card-tooltip">
+            {(film.ratingKp || film.rating || film.ratingImdb) && (
+              <div className="card-tooltip-ratings">
+                {(film.ratingKp || film.rating) && (
+                  <span className="card-tooltip-rating">★ {film.ratingKp ?? film.rating}</span>
+                )}
+                {film.ratingImdb && (
+                  <span className="card-tooltip-rating imdb">IMDb {film.ratingImdb}</span>
+                )}
+              </div>
+            )}
+            {genres.length > 0 && (
+              <div className="card-tooltip-genres">
+                {genres.map(g => <span key={g} className="card-tooltip-genre">{g}</span>)}
+              </div>
+            )}
+            {film.description && (
+              <div className="card-tooltip-desc">{film.description}</div>
+            )}
+          </div>
+        )}
       </div>
       <div className="card-info">
         <div className="card-title">{film.title}</div>
@@ -34,34 +56,6 @@ export const FilmCard = memo(function FilmCard({ film, onClick, onRemove, showRe
           </div>
         )}
       </div>
-      {hasTooltip && (
-        <div className="card-tooltip">
-          <div className="card-tooltip-title">{film.title}</div>
-          {(film.ratingKp || film.rating || film.ratingImdb) && (
-            <div className="card-tooltip-ratings">
-              {(film.ratingKp || film.rating) && (
-                <span className="card-tooltip-rating">★ {film.ratingKp ?? film.rating}</span>
-              )}
-              {film.ratingImdb && (
-                <span className="card-tooltip-rating imdb">IMDb {film.ratingImdb}</span>
-              )}
-            </div>
-          )}
-          {(film.year || film.countries) && (
-            <div className="card-tooltip-meta">
-              {[film.year, (film.countries || []).slice(0, 2).join(', ')].filter(Boolean).join(' · ')}
-            </div>
-          )}
-          {genres.length > 0 && (
-            <div className="card-tooltip-genres">
-              {genres.map(g => <span key={g} className="card-tooltip-genre">{g}</span>)}
-            </div>
-          )}
-          {film.description && (
-            <div className="card-tooltip-desc">{film.description}</div>
-          )}
-        </div>
-      )}
     </article>
   )
 })
