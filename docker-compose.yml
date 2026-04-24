@@ -39,7 +39,6 @@ services:
       - .env
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER:-films}:${POSTGRES_PASSWORD:-films_password}@postgres:5432/${POSTGRES_DB:-films}?sslmode=disable"
-      ALLOHA_UPSTREAM_PROXY_URL: "socks5://naAv3d:rdYE17@46.8.58.218:8000"
     dns:
       - 8.8.8.8
       - 1.1.1.1

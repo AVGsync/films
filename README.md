@@ -63,6 +63,12 @@ Admin endpoints:
 3. применяет новые `.sql` из `MIGRATIONS_DIR`
 4. создаёт/обновляет admin из env
 
+## Прокси
+
+- `UPSTREAM_PROXY_URL` — общий optional proxy для внешних API/плееров
+- `ALLOHA_UPSTREAM_PROXY_URL` — optional proxy только для Alloha/stloadi
+- если оба пустые, backend ходит напрямую
+
 ## Запуск
 
 Docker:

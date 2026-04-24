@@ -162,6 +162,13 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--r);
+  background: linear-gradient(135deg, rgba(255,255,255,0.105), rgba(255,255,255,0.025)), rgba(17,17,19,0.42);
+  backdrop-filter: blur(18px) saturate(1.18);
+  -webkit-backdrop-filter: blur(18px) saturate(1.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 18px 60px rgba(0,0,0,0.18);
 }
 .tab {
   padding: 7px 16px;
@@ -190,6 +197,13 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
   flex-wrap: wrap;
   margin-bottom: 20px;
   align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--r);
+  background: linear-gradient(135deg, rgba(255,255,255,0.105), rgba(255,255,255,0.028)), rgba(17,17,19,0.46);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.13), 0 18px 60px rgba(0,0,0,0.2);
 }
 .filter-bar select, .filter-bar input[type=number] {
   background: var(--surface2);
@@ -230,13 +244,25 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
 
 .card {
   border-radius: var(--r);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025)), rgba(17,17,19,0.5);
+  border: 1px solid rgba(255,255,255,0.12);
   overflow: hidden;
   cursor: pointer;
-  transition: transform .15s, border-color .15s;
+  transition: transform .15s, border-color .15s, background .15s;
+  backdrop-filter: blur(16px) saturate(1.16);
+  -webkit-backdrop-filter: blur(16px) saturate(1.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.11), 0 16px 54px rgba(0,0,0,0.2);
+  position: relative;
 }
-.card:hover { transform: translateY(-3px); border-color: var(--border2); }
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 24% 0%, rgba(255,255,255,0.16), transparent 28%);
+  pointer-events: none;
+  z-index: 1;
+}
+.card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.22); background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.035)), rgba(17,17,19,0.56); }
 
 .card-poster {
   aspect-ratio: 2/3;
@@ -261,6 +287,7 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
   color: #fbbf24;
 }
 .card-info { padding: 10px 12px 12px; }
+.card-info, .card-poster { position: relative; z-index: 2; }
 .card-title {
   font-weight: 600;
   font-size: 13px;
@@ -357,12 +384,12 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
 }
 .detail-backdrop {
   position: fixed;
-  inset: -56px;
+  inset: -90px;
   transform: translateY(calc(var(--detail-shift, 0px) * -0.05));
   background-size: cover;
   background-position: center;
-  filter: blur(26px) saturate(1.12);
-  opacity: .62;
+  filter: blur(20px) saturate(1.24) contrast(1.04);
+  opacity: .78;
   z-index: -1;
   pointer-events: none;
 }
@@ -371,8 +398,9 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 35% 20%, rgba(255,255,255,0.08), transparent 28%),
-    linear-gradient(180deg, rgba(9,9,11,0.24), rgba(9,9,11,0.66) 55%, var(--bg) 100%);
+    radial-gradient(circle at 28% 18%, rgba(255,255,255,0.13), transparent 30%),
+    radial-gradient(circle at 82% 14%, rgba(249,115,22,0.10), transparent 32%),
+    linear-gradient(180deg, rgba(9,9,11,0.16), rgba(9,9,11,0.46) 54%, var(--bg) 105%);
 }
 .detail-content { position: relative; z-index: 1; }
 .detail-layout {
@@ -380,15 +408,18 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 32px;
   align-items: start;
-  border: 1px solid rgba(255,255,255,0.16);
-  border-radius: var(--r);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 24px;
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.13), rgba(255,255,255,0.045) 42%, rgba(255,255,255,0.08)),
-    rgba(17,17,19,0.56);
-  backdrop-filter: blur(24px) saturate(1.22);
-  -webkit-backdrop-filter: blur(24px) saturate(1.22);
-  box-shadow: 0 28px 90px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.18);
-  padding: 18px;
+    linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.052) 44%, rgba(255,255,255,0.12)),
+    rgba(14,14,16,0.42);
+  backdrop-filter: blur(34px) saturate(1.45);
+  -webkit-backdrop-filter: blur(34px) saturate(1.45);
+  box-shadow:
+    0 34px 110px rgba(0,0,0,0.46),
+    inset 0 1px 0 rgba(255,255,255,0.28),
+    inset 0 -1px 0 rgba(255,255,255,0.08);
+  padding: 22px;
   position: relative;
   overflow: hidden;
 }
@@ -396,16 +427,20 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 18% 0%, rgba(255,255,255,0.14), transparent 30%);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(255,255,255,0.28), transparent 28%),
+    radial-gradient(circle at 84% 18%, rgba(255,255,255,0.11), transparent 30%),
+    linear-gradient(120deg, rgba(255,255,255,0.10), transparent 34%, rgba(255,255,255,0.05) 65%, transparent);
   pointer-events: none;
 }
 .detail-poster {
   position: relative;
   z-index: 1;
-  border-radius: var(--r);
+  border-radius: 20px;
   overflow: hidden;
   aspect-ratio: 2/3;
   background: var(--surface2);
+  box-shadow: 0 22px 68px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.16);
 }
 .detail-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -1704,6 +1739,7 @@ function renderGrid(items, containerId) {
 
 function proxyImg(url) {
   if (!url) return ''
+  if (/no-?poster/i.test(url)) return ''
   return '/proxy?url=' + encodeURIComponent(url)
 }
 

@@ -310,6 +310,10 @@ func collectionViaKinopoisk(ctx context.Context, collType, page string) ([]searc
 
 	items := make([]searchItem, 0, len(payload.Items))
 	for _, film := range payload.Items {
+		poster := normalizePosterURL(firstNonEmpty(film.PosterURLPreview, film.PosterURL))
+		if poster == "" {
+			continue
+		}
 		rating := ""
 		if film.RatingKinopoisk > 0 {
 			rating = strconv.FormatFloat(film.RatingKinopoisk, 'f', 1, 64)
@@ -320,7 +324,7 @@ func collectionViaKinopoisk(ctx context.Context, collType, page string) ([]searc
 			OriginalTitle: fallbackOriginalTitle(film.NameRu, film.NameEn),
 			Year:          normalizeValue(film.Year),
 			Rating:        rating,
-			Poster:        firstNonEmpty(film.PosterURLPreview, film.PosterURL),
+			Poster:        poster,
 			Genres:        collectSearchGenres(film.Genres),
 			Countries:     collectSearchCountries(film.Countries),
 			Type:          strings.TrimSpace(film.Type),
@@ -394,6 +398,10 @@ func handleFilmsFilter(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]searchItem, 0, len(payload.Items))
 	for _, film := range payload.Items {
+		poster := normalizePosterURL(firstNonEmpty(film.PosterURLPreview, film.PosterURL))
+		if poster == "" {
+			continue
+		}
 		rating := ""
 		if film.RatingKinopoisk > 0 {
 			rating = strconv.FormatFloat(film.RatingKinopoisk, 'f', 1, 64)
@@ -404,7 +412,7 @@ func handleFilmsFilter(w http.ResponseWriter, r *http.Request) {
 			OriginalTitle: fallbackOriginalTitle(film.NameRu, film.NameEn),
 			Year:          normalizeValue(film.Year),
 			Rating:        rating,
-			Poster:        firstNonEmpty(film.PosterURLPreview, film.PosterURL),
+			Poster:        poster,
 			Genres:        collectSearchGenres(film.Genres),
 			Countries:     collectSearchCountries(film.Countries),
 			Type:          strings.TrimSpace(film.Type),
@@ -518,13 +526,17 @@ func searchViaKinopoisk(ctx context.Context, query string) ([]searchItem, string
 		if i >= 20 {
 			break
 		}
+		poster := normalizePosterURL(film.PosterURLPreview)
+		if poster == "" {
+			continue
+		}
 		items = append(items, searchItem{
 			KPID:          film.FilmID,
 			Title:         firstNonEmpty(film.NameRu, film.NameEn, fmt.Sprintf("KP %d", film.FilmID)),
 			OriginalTitle: fallbackOriginalTitle(film.NameRu, film.NameEn),
 			Year:          strings.TrimSpace(film.Year),
 			Rating:        strings.TrimSpace(film.Rating),
-			Poster:        strings.TrimSpace(film.PosterURLPreview),
+			Poster:        poster,
 			Genres:        collectSearchGenres(film.Genres),
 			Countries:     collectSearchCountries(film.Countries),
 			Type:          strings.TrimSpace(film.Type),
@@ -556,7 +568,7 @@ func filmViaKinopoisk(ctx context.Context, kpID string) (filmDetails, error) {
 		RatingKP:      normalizeValue(payload["ratingKinopoisk"]),
 		RatingIMDb:    normalizeValue(payload["ratingImdb"]),
 		Duration:      durationValue(payload["filmLength"]),
-		Poster:        firstNonEmpty(stringValue(payload["posterUrl"]), stringValue(payload["posterUrlPreview"])),
+		Poster:        normalizePosterURL(firstNonEmpty(stringValue(payload["posterUrl"]), stringValue(payload["posterUrlPreview"]))),
 		Backdrop:      stringValue(payload["coverUrl"]),
 		Description:   firstNonEmpty(stringValue(payload["description"]), stringValue(payload["shortDescription"])),
 		Slogan:        stringValue(payload["slogan"]),
@@ -610,7 +622,7 @@ func filmViaAlloha(ctx context.Context, kpID string) (filmDetails, error) {
 		RatingKP:      normalizeValue(data["rating_kp"]),
 		RatingIMDb:    normalizeValue(data["rating_imdb"]),
 		Duration:      firstNonEmpty(stringValue(data["time"]), durationValue(data["time"])),
-		Poster:        stringValue(data["poster"]),
+		Poster:        normalizePosterURL(stringValue(data["poster"])),
 		Description:   stringValue(data["description"]),
 		Slogan:        stringValue(data["tagline"]),
 		Genres:        splitCSV(stringValue(data["genre"])),
@@ -1209,13 +1221,16 @@ func shouldUseRUProxy(host string) bool {
 }
 
 func proxyFuncForHost(host string) func(*http.Request) (*url.URL, error) {
-	proxyURL := strings.TrimSpace(os.Getenv("ALLOHA_UPSTREAM_PROXY_URL"))
-	if proxyURL == "" || !shouldUseRUProxy(host) {
+	proxyURL := strings.TrimSpace(os.Getenv("UPSTREAM_PROXY_URL"))
+	if proxyURL == "" && shouldUseRUProxy(host) {
+		proxyURL = strings.TrimSpace(os.Getenv("ALLOHA_UPSTREAM_PROXY_URL"))
+	}
+	if proxyURL == "" {
 		return nil
 	}
 	parsed, err := url.Parse(proxyURL)
 	if err != nil {
-		log.Printf("[proxy] invalid ALLOHA_UPSTREAM_PROXY_URL: %v", err)
+		log.Printf("[proxy] invalid proxy URL: %v", err)
 		return nil
 	}
 	return http.ProxyURL(parsed)
@@ -1507,7 +1522,15 @@ func splitCSV(value string) []string {
 }
 
 func normalizePosterURL(value string) string {
-	return strings.TrimSpace(value)
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	lower := strings.ToLower(value)
+	if strings.Contains(lower, "no-poster") || strings.Contains(lower, "noposter") {
+		return ""
+	}
+	return value
 }
 
 func cacheKeyFor(scope, raw string) string {
