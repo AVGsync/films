@@ -1,4 +1,4 @@
-package main
+package apiserver
 
 import (
 	"bytes"
@@ -20,19 +20,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
 
 const defaultReferer = "https://rezka.ag/"
 
+var _ = godotenv.Load()
+
 var (
-	defaultKinopoiskAPIKey = envOrDefault("KINOPOISK_API_KEY", "")
-	defaultAllohaToken     = envOrDefault("ALLOHA_API_TOKEN", "")
-	defaultCollapsToken    = envOrDefault("COLLAPS_API_TOKEN", "")
-	defaultRedisAddr       = envOrDefault("REDIS_ADDR", "")
-	defaultRedisPassword   = envOrDefault("REDIS_PASSWORD", "")
-	defaultRedisDB         = envIntOrDefault("REDIS_DB", 0)
-	defaultLibraryUser     = envOrDefault("LIBRARY_USER_ID", "default")
+	defaultKinopoiskAPIKey  = envOrDefault("KINOPOISK_API_KEY", "")
+	defaultAllohaToken      = envOrDefault("ALLOHA_API_TOKEN", "")
+	defaultCollapsToken     = envOrDefault("COLLAPS_API_TOKEN", "")
+	defaultAllohaEmbedToken = envOrDefault("ALLOHA_EMBED_TOKEN", "e7b61f129f4a392ac4bf6726a9dd6a")
+	defaultHDVBToken        = envOrDefault("HDVB_TOKEN", "8a22f8e7684404c3815e3ffa940f00a0")
+	defaultVideoSeedToken   = envOrDefault("VIDEOSEED_TOKEN", "6091e1d0bf421f73804d2f0dcc2bf1cf")
+	defaultRedisAddr        = envOrDefault("REDIS_ADDR", "")
+	defaultRedisPassword    = envOrDefault("REDIS_PASSWORD", "")
+	defaultRedisDB          = envIntOrDefault("REDIS_DB", 0)
+	defaultLibraryUser      = envOrDefault("LIBRARY_USER_ID", "default")
+	defaultWebDir           = envOrDefault("WEB_DIR", "web")
 
 	headTagRe           = regexp.MustCompile(`(?i)<head[^>]*>`)
 	cspMetaRe           = regexp.MustCompile(`(?i)<meta[^>]+http-equiv=["']Content-Security-Policy["'][^>]*/?>`)
@@ -104,8 +111,15 @@ type filmDetails struct {
 
 type playerPayload struct {
 	Provider  string `json:"provider"`
+	Label     string `json:"label"`
 	PlayerURL string `json:"playerUrl"`
 	Direct    bool   `json:"direct"`
+}
+
+type playerProvider struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	Async bool   `json:"async,omitempty"`
 }
 
 type libraryItem struct {
@@ -126,9 +140,21 @@ var fallbackFilms = []searchItem{
 	{KPID: 41519, Title: "Брат", Year: "1997", Rating: "8.3", Poster: "https://kinopoiskapiunofficial.tech/images/posters/kp_small/41519.jpg", Genres: []string{"драма", "криминал"}, Countries: []string{"Россия"}},
 }
 
-func main() {
+var playerProviders = []playerProvider{
+	{ID: "alloha", Label: "Alloha"},
+	{ID: "collaps", Label: "Collaps"},
+	{ID: "hdvb", Label: "HDVB", Async: true},
+	{ID: "videoseed", Label: "VideoSeeD"},
+	{ID: "vibix", Label: "Vibix"},
+	{ID: "trailer", Label: "Трейлер"},
+}
+
+func Run() error {
 	port := envOrDefault("PORT", "8080")
 	initRedis()
+	if err := initDatabase(); err != nil {
+		return err
+	}
 
 	if defaultKinopoiskAPIKey == "" {
 		log.Println("WARNING: KINOPOISK_API_KEY not set")
@@ -148,8 +174,17 @@ func main() {
 	mux.HandleFunc("/api/search", handleSearch)
 	mux.HandleFunc("/api/film", handleFilm)
 	mux.HandleFunc("/api/player", handlePlayer)
+	mux.HandleFunc("/api/providers", handleProviders)
+	mux.HandleFunc("/api/auth/register", handleRegister)
+	mux.HandleFunc("/api/auth/login", handleLogin)
+	mux.HandleFunc("/api/auth/me", handleMe)
+	mux.HandleFunc("/api/auth/logout", handleLogout)
 	mux.HandleFunc("/api/library/history", handleHistory)
 	mux.HandleFunc("/api/library/favorites", handleFavorites)
+	mux.HandleFunc("/api/admin/stats", handleAdminStats)
+	mux.HandleFunc("/api/admin/users", handleAdminUsers)
+	mux.HandleFunc("/api/admin/users/", handleAdminUser)
+	mux.HandleFunc("/api/admin/library", handleAdminLibrary)
 	mux.HandleFunc("/proxy", proxyHandler)
 	mux.HandleFunc("/", serveIndex)
 
@@ -160,7 +195,7 @@ func main() {
 	}
 
 	log.Printf("Cinema server: http://localhost:%s", port)
-	log.Fatal(server.ListenAndServe())
+	return server.ListenAndServe()
 }
 
 func serveIndex(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +204,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, defaultWebDir+"/index.html")
 }
 
 func initRedis() {
@@ -613,6 +648,14 @@ func handlePlayer(w http.ResponseWriter, r *http.Request) {
 		playerURL, err = resolveAlloha(r.Context(), kpID)
 	case "collaps":
 		playerURL, err = resolveCollaps(r.Context(), kpID)
+	case "hdvb":
+		playerURL, err = resolveHDVB(r.Context(), kpID)
+	case "videoseed":
+		playerURL = "https://tv-2-kinoserial.net/embed_auto/" + url.PathEscape(kpID) + "/?token=" + url.QueryEscape(defaultVideoSeedToken)
+	case "vibix":
+		playerURL = "https://675812196.videoframe2.com/embed-kp/" + url.PathEscape(kpID)
+	case "trailer":
+		playerURL = "https://api.atomics.ws/embed/trailer-kp/" + url.PathEscape(kpID)
 	default:
 		writeError(w, http.StatusBadRequest, "Неизвестный провайдер", provider)
 		return
@@ -625,17 +668,36 @@ func handlePlayer(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, playerPayload{
 		Provider:  provider,
+		Label:     providerLabel(provider),
 		PlayerURL: playerURL,
 		Direct:    true,
 	})
 
-	go saveHistoryByKPID(context.Background(), kpID, provider)
+	user, _ := currentUserFromRequest(r)
+	go saveHistoryByKPID(context.Background(), userIDOrZero(user), kpID, provider)
+}
+
+func handleProviders(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": playerProviders,
+		"count": len(playerProviders),
+	})
 }
 
 func handleHistory(w http.ResponseWriter, r *http.Request) {
+	user, authed := currentUserFromRequest(r)
 	switch r.Method {
 	case http.MethodGet:
 		limit := envIntOrDefault("LIBRARY_HISTORY_LIMIT", 50)
+		if authed && dbEnabled() {
+			items, err := getHistoryItems(r.Context(), user.ID, limit)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "Не удалось загрузить историю", err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+			return
+		}
 		items, err := getLibraryItems(r.Context(), libraryHistoryIndexKey(), libraryHistoryItemsKey(), limit)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось загрузить историю", err.Error())
@@ -646,6 +708,14 @@ func handleHistory(w http.ResponseWriter, r *http.Request) {
 			"count": len(items),
 		})
 	case http.MethodDelete:
+		if authed && dbEnabled() {
+			if err := clearHistoryItems(r.Context(), user.ID); err != nil {
+				writeError(w, http.StatusInternalServerError, "Не удалось очистить историю", err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+			return
+		}
 		if err := clearLibraryBucket(r.Context(), libraryHistoryIndexKey(), libraryHistoryItemsKey()); err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось очистить историю", err.Error())
 			return
@@ -657,8 +727,18 @@ func handleHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFavorites(w http.ResponseWriter, r *http.Request) {
+	user, authed := currentUserFromRequest(r)
 	switch r.Method {
 	case http.MethodGet:
+		if authed && dbEnabled() {
+			items, err := getFavoriteItems(r.Context(), user.ID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "Не удалось загрузить избранное", err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+			return
+		}
 		items, err := getLibraryItems(r.Context(), libraryFavoritesIndexKey(), libraryFavoritesItemsKey(), 200)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось загрузить избранное", err.Error())
@@ -686,6 +766,14 @@ func handleFavorites(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadGateway, "Не удалось добавить в избранное", err.Error())
 			return
 		}
+		if authed && dbEnabled() {
+			if err := saveFavoriteItem(r.Context(), user.ID, item); err != nil {
+				writeError(w, http.StatusInternalServerError, "Не удалось сохранить избранное", err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true, "item": item})
+			return
+		}
 		if err := saveFavorite(r.Context(), item); err != nil {
 			writeError(w, http.StatusInternalServerError, "Не удалось сохранить избранное", err.Error())
 			return
@@ -695,6 +783,14 @@ func handleFavorites(w http.ResponseWriter, r *http.Request) {
 		kpID := strings.TrimSpace(r.URL.Query().Get("kp"))
 		if kpID == "" {
 			writeError(w, http.StatusBadRequest, "Не передан kp", "")
+			return
+		}
+		if authed && dbEnabled() {
+			if err := removeFavoriteItem(r.Context(), user.ID, kpID); err != nil {
+				writeError(w, http.StatusInternalServerError, "Не удалось удалить из избранного", err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 			return
 		}
 		if err := removeFavorite(r.Context(), kpID); err != nil {
@@ -708,6 +804,10 @@ func handleFavorites(w http.ResponseWriter, r *http.Request) {
 }
 
 func resolveAlloha(ctx context.Context, kpID string) (string, error) {
+	if defaultAllohaEmbedToken != "" {
+		return "https://harald-as.newplayjj.com/?kp=" + url.QueryEscape(kpID) + "&token=" + url.QueryEscape(defaultAllohaEmbedToken), nil
+	}
+
 	target := "https://api.alloha.tv/?token=" + url.QueryEscape(defaultAllohaToken) + "&kp=" + url.QueryEscape(kpID)
 	body, err := fetchCachedUpstreamBytes(ctx, http.MethodGet, target, nil, http.Header{
 		"Accept": []string{"application/json, text/plain, */*"},
@@ -729,6 +829,10 @@ func resolveAlloha(ctx context.Context, kpID string) (string, error) {
 }
 
 func resolveCollaps(ctx context.Context, kpID string) (string, error) {
+	return "https://api.zenithjs.ws/embed/kp/" + url.PathEscape(kpID), nil
+}
+
+func resolveCollapsAPI(ctx context.Context, kpID string) (string, error) {
 	target := "https://api.bhcesh.me/franchise/details?token=" + url.QueryEscape(defaultCollapsToken) + "&kinopoisk_id=" + url.QueryEscape(kpID)
 	body, err := fetchCachedUpstreamBytes(ctx, http.MethodGet, target, nil, http.Header{
 		"Accept": []string{"application/json"},
@@ -760,13 +864,70 @@ func resolveCollaps(ctx context.Context, kpID string) (string, error) {
 	return playerURL, nil
 }
 
-func saveHistoryByKPID(ctx context.Context, kpID, provider string) {
+func resolveHDVB(ctx context.Context, kpID string) (string, error) {
+	target := "https://apivb.com/api/videos.json?id_kp=" + url.QueryEscape(kpID) + "&token=" + url.QueryEscape(defaultHDVBToken)
+	body, err := fetchCachedUpstreamBytes(ctx, http.MethodGet, target, nil, http.Header{
+		"Accept": []string{"application/json, text/plain, */*"},
+	}, upstreamCacheTTL)
+	if err != nil {
+		return "", err
+	}
+
+	var payload any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return "", fmt.Errorf("hdvb: %w", err)
+	}
+
+	playerURL := absoluteURL(
+		pickString(
+			payload,
+			[]any{0, "iframe_url"},
+			[]any{"iframe_url"},
+			[]any{"data", 0, "iframe_url"},
+			[]any{"data", "iframe_url"},
+			[]any{"results", 0, "iframe_url"},
+		),
+		target,
+	)
+	if playerURL == "" {
+		return "", providerResolutionError("hdvb", payload)
+	}
+	return playerURL, nil
+}
+
+func providerLabel(provider string) string {
+	for _, item := range playerProviders {
+		if item.ID == provider {
+			return item.Label
+		}
+	}
+	return provider
+}
+
+func saveHistoryByKPID(ctx context.Context, userID int64, kpID, provider string) {
 	if !redisEnabled || strings.TrimSpace(kpID) == "" {
+		if userID == 0 || strings.TrimSpace(kpID) == "" || !dbEnabled() {
+			return
+		}
+		item, err := buildLibraryItem(ctx, kpID, provider)
+		if err != nil {
+			log.Printf("history skip %s: %v", kpID, err)
+			return
+		}
+		if err := saveHistoryItem(ctx, userID, item); err != nil {
+			log.Printf("history save %s: %v", kpID, err)
+		}
 		return
 	}
 	item, err := buildLibraryItem(ctx, kpID, provider)
 	if err != nil {
 		log.Printf("history skip %s: %v", kpID, err)
+		return
+	}
+	if userID > 0 && dbEnabled() {
+		if err := saveHistoryItem(ctx, userID, item); err != nil {
+			log.Printf("history save %s: %v", kpID, err)
+		}
 		return
 	}
 	if err := saveHistory(ctx, item); err != nil {
@@ -1016,10 +1177,11 @@ func newHTTPClient(host string, skipTLSVerify bool) *http.Client {
 func isAllowed(host string) bool {
 	allowed := []string{
 		"alloha.tv", "api.alloha.tv", "api.bhcesh.me", "api.zenithjs.ws",
-		"apicollaps.cc", "cdn.jsdelivr.net", "distribrey.com", "img.imgilall.me",
+		"apicollaps.cc", "apivb.com", "api.atomics.ws", "cdn.jsdelivr.net", "distribrey.com", "hdvb-player.github.io",
+		"harald-as.newplayjj.com", "img.imgilall.me", "kodir2.github.io", "lmx-pl.github.io",
 		"imasdk.googleapis.com", "interkh.com", "kinopoiskapiunofficial.tech",
 		"kp.yandex.net", "st.kp.yandex.net", "avatars.mds.yandex.net",
-		"stloadi.live", "unpkg.com",
+		"stloadi.live", "tv-2-kinoserial.net", "unpkg.com", "videoframe2.com",
 	}
 	for _, item := range allowed {
 		if host == item || strings.HasSuffix(host, "."+item) {
@@ -1040,6 +1202,8 @@ func isJSONAPIHost(host string) bool {
 	case host == "api.alloha.tv" || strings.HasSuffix(host, ".api.alloha.tv"):
 		return true
 	case host == "api.bhcesh.me" || strings.HasSuffix(host, ".api.bhcesh.me"):
+		return true
+	case host == "apivb.com" || strings.HasSuffix(host, ".apivb.com"):
 		return true
 	default:
 		return false

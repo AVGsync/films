@@ -1,4 +1,20 @@
 services:
+  postgres:
+    container_name: films-postgres
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-films}
+      POSTGRES_USER: ${POSTGRES_USER:-films}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-films_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-films} -d ${POSTGRES_DB:-films}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   redis:
     container_name: films-redis
     image: redis:7-alpine
@@ -13,12 +29,16 @@ services:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     ports:
       - "8282:8282"
     env_file:
       - .env
     environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER:-films}:${POSTGRES_PASSWORD:-films_password}@postgres:5432/${POSTGRES_DB:-films}?sslmode=disable"
       ALLOHA_UPSTREAM_PROXY_URL: "socks5://naAv3d:rdYE17@46.8.58.218:8000"
     dns:
       - 8.8.8.8
@@ -49,4 +69,5 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  postgres_data:
   redis_data:

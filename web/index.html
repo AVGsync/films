@@ -115,6 +115,41 @@ header {
   color: var(--accent);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.icon-btn, .text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.icon-btn { width: 34px; padding: 0; }
+.icon-btn:hover, .text-btn:hover { border-color: var(--border2); color: var(--text); }
+.user-chip {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  border-color: var(--border2);
+  background: var(--surface2);
+}
+
 main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 100%; }
 
 /* ── Tabs / Pills ── */
@@ -373,6 +408,117 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
 }
 .reload-btn:hover { border-color: var(--border2); color: var(--text); }
 
+.section-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.library-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.card-actions button {
+  flex: 1;
+  min-height: 30px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.card-actions button:hover { color: var(--text); border-color: var(--border2); }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.72);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-backdrop.active { display: flex; }
+.modal {
+  width: min(380px, 100%);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 18px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.modal-title { font-size: 16px; font-weight: 700; }
+.form-grid { display: grid; gap: 10px; }
+.form-grid input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: inherit;
+  padding: 10px 12px;
+  outline: none;
+}
+.form-grid input:focus { border-color: var(--border2); }
+.form-error { min-height: 18px; color: var(--red); font-size: 12px; }
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.stat-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--r);
+  padding: 14px;
+}
+.stat-card strong { display: block; font-size: 22px; line-height: 1.1; margin-bottom: 6px; }
+.stat-card span { color: var(--muted); font-size: 12px; }
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--surface);
+}
+table { width: 100%; border-collapse: collapse; }
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 13px;
+  vertical-align: middle;
+}
+th { color: var(--muted); font-weight: 600; background: var(--surface2); }
+tr:last-child td { border-bottom: 0; }
+td select {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 6px 8px;
+}
+
 .player-shell {
   position: relative;
   width: 100%;
@@ -435,7 +581,12 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
   header { gap: 10px; }
   .search-wrap { max-width: none; }
   .brand span { display: none; }
+  .provider-tabs { order: 3; width: 100%; overflow-x: auto; padding-bottom: 4px; }
+  header { height: auto; min-height: 56px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .header-actions { margin-left: auto; }
+  .user-chip { max-width: 92px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+  th, td { padding: 9px 8px; font-size: 12px; }
 }
 </style>
 </head>
@@ -458,15 +609,46 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
       <input type="text" id="searchInput" placeholder="Поиск фильмов..." autocomplete="off">
     </div>
 
-    <div class="provider-tabs">
-      <button id="prov-alloha" class="active" onclick="setProvider('alloha')">Alloha</button>
-      <button id="prov-collaps" onclick="setProvider('collaps')">Collaps</button>
+    <div class="provider-tabs" id="providerTabs">
+      <button class="active" disabled>Alloha</button>
+    </div>
+
+    <div class="header-actions" id="headerActions">
+      <button class="icon-btn" title="Избранное" onclick="renderLibrary('favorites')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.6-9.4-9.1C.6 8.1 2.9 4 7 4c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 4.1 0 6.4 4.1 4.4 7.9C19 16.4 12 21 12 21z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="icon-btn" title="История" onclick="renderLibrary('history')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="text-btn" id="adminBtn" style="display:none" onclick="renderAdmin()">Админ</button>
+      <button class="text-btn" id="loginBtn" onclick="showAuthModal('login')">Войти</button>
     </div>
   </header>
 
   <main id="main">
     <!-- home, search, or detail rendered here -->
   </main>
+
+  <div class="modal-backdrop" id="authModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title" id="authTitle">Вход</div>
+        <button class="icon-btn" onclick="hideAuthModal()" title="Закрыть">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="section-tabs">
+        <button class="tab active" id="authLoginTab" onclick="showAuthModal('login')">Вход</button>
+        <button class="tab" id="authRegisterTab" onclick="showAuthModal('register')">Регистрация</button>
+      </div>
+      <form class="form-grid" onsubmit="submitAuth(event)">
+        <input id="authLogin" autocomplete="username" placeholder="Логин">
+        <input id="authPassword" type="password" autocomplete="current-password" placeholder="Пароль">
+        <div class="form-error" id="authError"></div>
+        <button class="apply-btn" id="authSubmit" type="submit">Войти</button>
+      </form>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -474,6 +656,7 @@ main { flex: 1; padding: 24px 20px; max-width: 1400px; margin: 0 auto; width: 10
 const state = {
   view: 'home',
   provider: 'alloha',
+  providers: [{ id: 'alloha', label: 'Alloha' }],
   collection: 'TOP_POPULAR_ALL',
   query: '',
   filters: { genre: '', type: '', order: 'RATING', yearFrom: '', yearTo: '' },
@@ -483,6 +666,11 @@ const state = {
   items: [],
   selectedKpId: null,
   prevView: 'home',
+  token: localStorage.getItem('cinema.jwt') || '',
+  user: null,
+  authMode: 'login',
+  libraryType: 'favorites',
+  adminTab: 'overview',
 }
 
 const COLLECTIONS = [
@@ -514,7 +702,20 @@ function esc(v) {
 }
 
 async function api(url) {
-  const r = await fetch(url, { headers: { Accept: 'application/json' } })
+  const headers = { Accept: 'application/json' }
+  if (state.token) headers.Authorization = 'Bearer ' + state.token
+  const r = await fetch(url, { headers })
+  const text = await r.text()
+  let data = {}
+  try { data = JSON.parse(text) } catch (_) { throw new Error(text) }
+  if (!r.ok) throw new Error(data.error || text || `HTTP ${r.status}`)
+  return data
+}
+
+async function apiJSON(url, body, method = 'POST') {
+  const headers = { Accept: 'application/json', 'Content-Type': 'application/json' }
+  if (state.token) headers.Authorization = 'Bearer ' + state.token
+  const r = await fetch(url, { method, headers, body: JSON.stringify(body || {}) })
   const text = await r.text()
   let data = {}
   try { data = JSON.parse(text) } catch (_) { throw new Error(text) }
@@ -525,9 +726,97 @@ async function api(url) {
 // ── Provider ────────────────────────────────────────────────────────────────
 function setProvider(p) {
   state.provider = p
-  document.getElementById('prov-alloha').classList.toggle('active', p === 'alloha')
-  document.getElementById('prov-collaps').classList.toggle('active', p === 'collaps')
+  document.querySelectorAll('#providerTabs button').forEach(btn => btn.classList.toggle('active', btn.dataset.provider === p))
   if (state.view === 'detail' && state.selectedKpId) loadPlayer(state.selectedKpId)
+}
+
+async function loadProviders() {
+  try {
+    const data = await api('/api/providers')
+    state.providers = data.items || state.providers
+  } catch (_) {}
+  renderProviderTabs()
+}
+
+function renderProviderTabs() {
+  const wrap = document.getElementById('providerTabs')
+  if (!wrap) return
+  wrap.innerHTML = state.providers.map(p => `
+    <button data-provider="${esc(p.id)}" class="${p.id === state.provider ? 'active' : ''}" onclick="setProvider('${esc(p.id)}')">${esc(p.label)}</button>
+  `).join('')
+}
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+function showAuthModal(mode = 'login') {
+  state.authMode = mode
+  document.getElementById('authModal').classList.add('active')
+  document.getElementById('authTitle').textContent = mode === 'login' ? 'Вход' : 'Регистрация'
+  document.getElementById('authSubmit').textContent = mode === 'login' ? 'Войти' : 'Создать аккаунт'
+  document.getElementById('authLoginTab').classList.toggle('active', mode === 'login')
+  document.getElementById('authRegisterTab').classList.toggle('active', mode === 'register')
+  document.getElementById('authError').textContent = ''
+}
+
+function hideAuthModal() {
+  document.getElementById('authModal').classList.remove('active')
+}
+
+async function submitAuth(e) {
+  e.preventDefault()
+  const login = document.getElementById('authLogin').value.trim()
+  const password = document.getElementById('authPassword').value.trim()
+  const error = document.getElementById('authError')
+  error.textContent = ''
+  try {
+    const data = await apiJSON(`/api/auth/${state.authMode}`, { login, password })
+    state.token = data.token || ''
+    state.user = data.user || null
+    if (state.token) localStorage.setItem('cinema.jwt', state.token)
+    updateHeaderAuth()
+    hideAuthModal()
+    if (state.view === 'library') renderLibrary(state.libraryType)
+  } catch (err) {
+    error.textContent = err.message
+  }
+}
+
+async function loadMe() {
+  if (!state.token) { updateHeaderAuth(); return }
+  try {
+    const data = await api('/api/auth/me')
+    state.user = data.user || null
+  } catch (_) {
+    state.token = ''
+    state.user = null
+    localStorage.removeItem('cinema.jwt')
+  }
+  updateHeaderAuth()
+}
+
+function logout() {
+  state.token = ''
+  state.user = null
+  localStorage.removeItem('cinema.jwt')
+  updateHeaderAuth()
+  if (state.view === 'admin') goHome()
+}
+
+function updateHeaderAuth() {
+  const loginBtn = document.getElementById('loginBtn')
+  const adminBtn = document.getElementById('adminBtn')
+  if (!loginBtn || !adminBtn) return
+  adminBtn.style.display = state.user?.role === 'admin' ? '' : 'none'
+  if (state.user) {
+    loginBtn.textContent = state.user.login
+    loginBtn.classList.add('user-chip')
+    loginBtn.onclick = logout
+    loginBtn.title = 'Выйти'
+  } else {
+    loginBtn.textContent = 'Войти'
+    loginBtn.classList.remove('user-chip')
+    loginBtn.onclick = () => showAuthModal('login')
+    loginBtn.title = ''
+  }
 }
 
 // ── Routing ─────────────────────────────────────────────────────────────────
@@ -551,6 +840,11 @@ function goDetail(kpId) {
   state.view = 'detail'
   state.selectedKpId = kpId
   renderDetail(kpId)
+}
+
+function goLibrary(type) {
+  state.prevView = state.view
+  renderLibrary(type)
 }
 
 function goBack() {
@@ -774,6 +1068,7 @@ function renderDetail(kpId) {
             <div class="player-title">Плеер</div>
             <div class="player-controls">
               <span class="status-badge loading" id="playerStatus">Ожидание</span>
+              <button class="reload-btn" onclick="addFavorite(${kpId})">В избранное</button>
               <button class="reload-btn" onclick="reloadPlayer()">Перезагрузить</button>
             </div>
           </div>
@@ -861,6 +1156,214 @@ function reloadPlayer() {
   if (state.selectedKpId) loadPlayer(state.selectedKpId)
 }
 
+async function addFavorite(kpId) {
+  try {
+    await apiJSON('/api/library/favorites', { kpId, provider: state.provider })
+    const status = document.getElementById('playerStatus')
+    if (status) { status.textContent = 'В избранном'; status.className = 'status-badge' }
+  } catch (e) {
+    const status = document.getElementById('playerStatus')
+    if (status) { status.textContent = 'Ошибка'; status.className = 'status-badge error' }
+  }
+}
+
+// ── Library ─────────────────────────────────────────────────────────────────
+async function renderLibrary(type = 'favorites') {
+  state.view = 'library'
+  state.libraryType = type
+  const m = document.getElementById('main')
+  m.innerHTML = `
+    <div class="library-toolbar">
+      <div class="section-tabs">
+        <button class="tab ${type === 'favorites' ? 'active' : ''}" onclick="renderLibrary('favorites')">Избранное</button>
+        <button class="tab ${type === 'history' ? 'active' : ''}" onclick="renderLibrary('history')">История</button>
+      </div>
+      ${type === 'history' ? '<button class="reload-btn" onclick="clearHistory()">Очистить</button>' : ''}
+    </div>
+    <div id="libraryWrap">${skeletonGrid(8)}</div>
+  `
+  try {
+    const data = await api(`/api/library/${type}`)
+    renderLibraryGrid(data.items || [], type)
+  } catch (e) {
+    document.getElementById('libraryWrap').innerHTML = `<div class="state-box"><strong>Ошибка</strong>${esc(e.message)}</div>`
+  }
+}
+
+function renderLibraryGrid(items, type) {
+  const wrap = document.getElementById('libraryWrap')
+  if (!wrap) return
+  if (!items.length) {
+    wrap.innerHTML = `<div class="state-box"><strong>${type === 'favorites' ? 'Избранное пусто' : 'История пуста'}</strong>Откройте фильм и загрузите плеер</div>`
+    return
+  }
+  wrap.innerHTML = `<div class="grid">${items.map(item => renderLibraryCard(item, type)).join('')}</div>`
+}
+
+function renderLibraryCard(item, type) {
+  const meta = [item.year, providerName(item.provider), item.timestamp ? new Date(item.timestamp).toLocaleDateString('ru-RU') : ''].filter(Boolean).join(' · ')
+  const src = proxyImg(item.poster)
+  return `
+    <article class="card">
+      <div class="card-poster" onclick="goDetail(${item.kpId})">
+        ${src ? `<img src="${esc(src)}" alt="${esc(item.title)}" loading="lazy">` : ''}
+        ${item.rating ? `<span class="card-rating">★ ${esc(item.rating)}</span>` : ''}
+      </div>
+      <div class="card-info">
+        <div class="card-title" onclick="goDetail(${item.kpId})">${esc(item.title)}</div>
+        <div class="card-meta">${esc(meta)}</div>
+        <div class="card-actions">
+          <button onclick="goDetail(${item.kpId})">Открыть</button>
+          ${type === 'favorites' ? `<button onclick="removeFavorite(${item.kpId})">Убрать</button>` : ''}
+        </div>
+      </div>
+    </article>
+  `
+}
+
+function providerName(id) {
+  return (state.providers.find(p => p.id === id) || {}).label || id || ''
+}
+
+async function removeFavorite(kpId) {
+  try {
+    await fetch(`/api/library/favorites?kp=${encodeURIComponent(kpId)}`, {
+      method: 'DELETE',
+      headers: state.token ? { Authorization: 'Bearer ' + state.token } : {},
+    })
+    renderLibrary('favorites')
+  } catch (_) {}
+}
+
+async function clearHistory() {
+  try {
+    await fetch('/api/library/history', {
+      method: 'DELETE',
+      headers: state.token ? { Authorization: 'Bearer ' + state.token } : {},
+    })
+    renderLibrary('history')
+  } catch (_) {}
+}
+
+// ── Admin ───────────────────────────────────────────────────────────────────
+async function renderAdmin(tab = state.adminTab || 'overview') {
+  state.view = 'admin'
+  state.adminTab = tab
+  const m = document.getElementById('main')
+  m.innerHTML = `
+    <div class="library-toolbar">
+      <div class="section-tabs">
+        <button class="tab ${tab === 'overview' ? 'active' : ''}" onclick="renderAdmin('overview')">Обзор</button>
+        <button class="tab ${tab === 'users' ? 'active' : ''}" onclick="renderAdmin('users')">Пользователи</button>
+        <button class="tab ${tab === 'favorites' ? 'active' : ''}" onclick="renderAdmin('favorites')">Избранное</button>
+        <button class="tab ${tab === 'history' ? 'active' : ''}" onclick="renderAdmin('history')">История</button>
+        <button class="tab ${tab === 'players' ? 'active' : ''}" onclick="renderAdmin('players')">Плееры</button>
+      </div>
+    </div>
+    <div id="adminWrap"><div class="state-box"><strong>Загрузка</strong></div></div>
+  `
+  if (tab === 'overview') return renderAdminOverview()
+  if (tab === 'users') return renderAdminUsers()
+  if (tab === 'players') return renderAdminPlayers()
+  return renderAdminLibrary(tab)
+}
+
+async function renderAdminOverview() {
+  try {
+    const s = await api('/api/admin/stats')
+    document.getElementById('adminWrap').innerHTML = `
+      <div class="admin-grid">
+        ${statCard('Пользователи', s.users)}
+        ${statCard('Админы', s.admins)}
+        ${statCard('Избранное', s.favorites)}
+        ${statCard('История', s.history)}
+        ${statCard('Плееры', s.providers)}
+      </div>
+    `
+  } catch (e) {
+    document.getElementById('adminWrap').innerHTML = `<div class="state-box"><strong>Ошибка</strong>${esc(e.message)}</div>`
+  }
+}
+
+function statCard(label, value) {
+  return `<div class="stat-card"><strong>${esc(value ?? 0)}</strong><span>${esc(label)}</span></div>`
+}
+
+async function renderAdminUsers() {
+  try {
+    const data = await api('/api/admin/users')
+    const rows = (data.items || []).map(u => `
+      <tr>
+        <td>${esc(u.id)}</td>
+        <td>${esc(u.login)}</td>
+        <td>
+          <select onchange="changeUserRole(${u.id}, this.value)">
+            <option value="user" ${u.role === 'user' ? 'selected' : ''}>user</option>
+            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+          </select>
+        </td>
+        <td>${u.createdAt ? esc(new Date(u.createdAt).toLocaleString('ru-RU')) : ''}</td>
+        <td><button class="reload-btn" onclick="deleteUser(${u.id})">Удалить</button></td>
+      </tr>
+    `).join('')
+    document.getElementById('adminWrap').innerHTML = `
+      <div class="table-wrap"><table>
+        <thead><tr><th>ID</th><th>Логин</th><th>Роль</th><th>Создан</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5">Нет пользователей</td></tr>'}</tbody>
+      </table></div>
+    `
+  } catch (e) {
+    document.getElementById('adminWrap').innerHTML = `<div class="state-box"><strong>Ошибка</strong>${esc(e.message)}</div>`
+  }
+}
+
+async function changeUserRole(id, role) {
+  try { await apiJSON(`/api/admin/users/${id}`, { role }, 'PATCH') }
+  catch (e) { alert(e.message); renderAdminUsers() }
+}
+
+async function deleteUser(id) {
+  try {
+    await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + state.token } })
+    renderAdminUsers()
+  } catch (_) {}
+}
+
+async function renderAdminLibrary(type) {
+  try {
+    const data = await api(`/api/admin/library?type=${encodeURIComponent(type)}&limit=100`)
+    const rows = (data.items || []).map(item => `
+      <tr>
+        <td>${esc(item.login)}</td>
+        <td>${esc(item.kpId)}</td>
+        <td>${esc(item.title)}</td>
+        <td>${esc(providerName(item.provider))}</td>
+        <td>${item.timestamp ? esc(new Date(item.timestamp).toLocaleString('ru-RU')) : ''}</td>
+      </tr>
+    `).join('')
+    document.getElementById('adminWrap').innerHTML = `
+      <div class="table-wrap"><table>
+        <thead><tr><th>Логин</th><th>KP</th><th>Название</th><th>Плеер</th><th>Дата</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5">Нет данных</td></tr>'}</tbody>
+      </table></div>
+    `
+  } catch (e) {
+    document.getElementById('adminWrap').innerHTML = `<div class="state-box"><strong>Ошибка</strong>${esc(e.message)}</div>`
+  }
+}
+
+function renderAdminPlayers() {
+  const rows = state.providers.map(p => `
+    <tr><td>${esc(p.id)}</td><td>${esc(p.label)}</td><td>${p.async ? 'API resolve' : 'iframe'}</td></tr>
+  `).join('')
+  document.getElementById('adminWrap').innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Название</th><th>Тип</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  `
+}
+
 // ── Grid rendering ──────────────────────────────────────────────────────────
 function renderGrid(items, containerId) {
   const wrap = document.getElementById(containerId)
@@ -933,6 +1436,8 @@ document.getElementById('searchInput').addEventListener('keydown', e => {
 document.getElementById('brandBtn').addEventListener('click', goHome)
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+loadMe()
+loadProviders()
 loadFilters()
 renderHome()
 </script>
