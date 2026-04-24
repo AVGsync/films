@@ -17,6 +17,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -200,8 +201,11 @@ func Run() error {
 
 func serveIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
+		candidate := filepath.Join(defaultWebDir, filepath.Clean("/"+r.URL.Path))
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			http.ServeFile(w, r, candidate)
+			return
+		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeFile(w, r, defaultWebDir+"/index.html")
