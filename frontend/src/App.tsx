@@ -103,7 +103,7 @@ function Inner() {
 
   return (
     <div className="app-content">
-      {state.backdrop && (
+      {state.backdrop && state.view !== 'detail' && (
         <div
           className="app-bg"
           style={{ backgroundImage: `url("${state.backdrop}")` }}
