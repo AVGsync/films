@@ -254,7 +254,10 @@ export function DetailView({ kpId, onBack }: Props) {
                   ref={iframeRef}
                   src={playerUrl}
                   allowFullScreen
-                  allow="autoplay; fullscreen; encrypted-media"
+                  // @ts-ignore legacy
+                  webkitallowfullscreen="true"
+                  mozallowfullscreen="true"
+                  allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                   onLoad={onIframeLoad}
                 />
               )}
