@@ -49,6 +49,8 @@ body {
   background-position: center;
   transition: background-image 1.2s ease;
   filter: blur(60px) saturate(1.4) brightness(0.35);
+  transform: translateZ(0);
+  will-change: transform;
 }
 .app-bg::after {
   content: '';
@@ -85,11 +87,13 @@ body {
   grid-template-columns: minmax(130px, 1fr) minmax(260px, 520px) minmax(200px, 1fr);
   align-items: center;
   gap: 16px;
-  background: rgba(5,5,12,0.72);
-  backdrop-filter: blur(32px) saturate(200%);
-  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  background: rgba(5,5,12,0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid rgba(255,255,255,0.07);
   box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .brand {
@@ -115,9 +119,7 @@ body {
 .search-wrap { position: relative; width: 100%; }
 .search-input {
   width: 100%;
-  background: rgba(255,255,255,0.07);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--r-full);
   padding: 9px 16px 9px 38px;
@@ -146,12 +148,12 @@ body {
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   border: none; cursor: pointer; font: inherit; font-weight: 600;
-  transition: all 0.18s ease; user-select: none;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.15s ease, box-shadow 0.18s ease;
+  user-select: none;
 }
 .btn-glass {
-  background: rgba(255,255,255,0.07);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.14);
   color: var(--text-secondary);
   border-radius: var(--r-sm);
   padding: 7px 14px; font-size: 13px;
@@ -219,8 +221,7 @@ main {
   display: flex; gap: 6px; flex-wrap: wrap;
   margin-bottom: 20px; padding: 10px 12px;
   border-radius: var(--r);
-  background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015));
-  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  background: rgba(18,18,30,0.82);
   border: 1px solid rgba(255,255,255,0.10);
   box-shadow: var(--glass-shadow);
 }
@@ -228,7 +229,9 @@ main {
   padding: 7px 16px; border-radius: var(--r-full);
   border: 1px solid transparent; background: transparent;
   color: var(--text-muted); font: inherit; font-size: 13px; font-weight: 600;
-  cursor: pointer; transition: all 0.18s ease; white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
 }
 .tab:hover { color: var(--text-secondary); background: rgba(255,255,255,0.06); }
 .tab.active {
@@ -243,8 +246,7 @@ main {
   display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
   margin-bottom: 20px; padding: 12px 16px;
   border-radius: var(--r);
-  background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015));
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  background: rgba(18,18,30,0.82);
   border: 1px solid rgba(255,255,255,0.10);
   box-shadow: var(--glass-shadow);
 }
@@ -273,28 +275,34 @@ main {
 }
 
 /* ── Film card ── */
+/* NO backdrop-filter — GPU-killer with 40+ cards. Solid bg instead. */
+/* Only GPU-composited properties in transition (transform, opacity). */
 .card {
   border-radius: var(--r);
-  background: linear-gradient(145deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.03) 100%);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(18, 18, 32, 0.88);
+  border: 1px solid rgba(255,255,255,0.10);
   overflow: hidden; cursor: pointer;
-  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s, box-shadow 0.2s;
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), opacity 0.15s;
   position: relative;
-  will-change: transform;
+  transform: translateZ(0); /* own compositing layer */
+}
+/* Hover brightness via opacity-animated overlay (GPU composited, no repaint) */
+.card::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.07);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.15s ease;
+  border-radius: inherit;
 }
 .card::before {
   content: '';
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.14) 0%, transparent 50%);
+  background: radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.12) 0%, transparent 50%);
   pointer-events: none; z-index: 1; border-radius: inherit;
 }
-.card:hover {
-  transform: translateY(-5px) scale(1.01);
-  border-color: rgba(255,255,255,0.22);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.18);
-}
+.card:hover { transform: translateY(-4px) scale(1.01); }
+.card:hover::after { opacity: 1; }
 .card:active { transform: translateY(-2px) scale(1.005); }
 
 .card-poster {
@@ -304,9 +312,8 @@ main {
 .card-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .card-rating {
   position: absolute; top: 8px; right: 8px;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,214,10,0.3);
+  background: rgba(0,0,0,0.78);
+  border: 1px solid rgba(255,214,10,0.28);
   border-radius: var(--r-xs); padding: 3px 8px;
   font-size: 11px; font-weight: 700; color: var(--accent-yellow); z-index: 2;
 }
@@ -382,17 +389,20 @@ main {
 
 /* ── Detail ── */
 .detail-fixed-bg {
-  position: fixed; inset: -40px; z-index: -1;
+  position: fixed; inset: -30px; z-index: -2;
   background-size: cover; background-position: center;
-  filter: blur(10px) saturate(1.8) brightness(0.52);
+  filter: blur(14px) saturate(1.7) brightness(0.58);
   pointer-events: none;
+  transform: translateZ(0);
 }
 .detail-fixed-overlay {
-  position: absolute; inset: 0;
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none;
   background: linear-gradient(180deg,
-    rgba(5,5,12,0.10) 0%,
-    rgba(5,5,12,0.35) 50%,
-    rgba(5,5,12,0.90) 100%
+    rgba(5,5,12,0.08) 0%,
+    rgba(5,5,12,0.30) 40%,
+    rgba(5,5,12,0.88) 90%,
+    #050508 100%
   );
 }
 
@@ -699,20 +709,15 @@ td select option { background: #0d0d1a; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
 
-/* ── Perf: skip off-screen card rendering ── */
+/* ── Perf: skip off-screen card rendering, stable intrinsic size ── */
 .card {
   content-visibility: auto;
-  contain-intrinsic-size: 0 320px; /* approx card height, prevents layout shift */
+  contain-intrinsic-size: auto 310px;
+  display: flex; flex-direction: column;
 }
-img { decoding: async; }
-
-/* ── Card height consistency ── */
-.card { display: flex; flex-direction: column; }
 .card-info { flex: 1; display: flex; flex-direction: column; }
 .card-meta { margin-top: auto; }
+img { decoding: async; }
 
-/* ── Grid alignment: prevent orphan single card stretching ── */
-.grid::after {
-  content: '';
-  grid-column: span 2;
-}
+/* ── Grid alignment ── */
+.grid::after { content: ''; grid-column: span 2; }

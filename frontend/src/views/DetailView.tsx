@@ -111,11 +111,10 @@ export function DetailView({ kpId, onBack }: Props) {
 
   return (
     <main>
-      {backdropSrc && (
-        <div className="detail-fixed-bg" style={{ backgroundImage: `url("${backdropSrc}")` }}>
-          <div className="detail-fixed-overlay" />
-        </div>
-      )}
+      {backdropSrc && <>
+        <div className="detail-fixed-bg" style={{ backgroundImage: `url("${backdropSrc}")` }} />
+        <div className="detail-fixed-overlay" />
+      </>}
 
       <button className="back-btn" onClick={() => { dispatch({ type: 'SET_BACKDROP', backdrop: '' }); onBack() }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
