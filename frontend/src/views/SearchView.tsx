@@ -58,64 +58,73 @@ export function SearchView({ onFilmClick, onBack }: Props) {
   const { state, dispatch } = useStore()
   const stateRef = useRef(state)
   stateRef.current = state
+
   const loadingRef = useRef(false)
+  const hasMoreRef = useRef(false)
+  const pageRef = useRef(1)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const observerRef = useRef<IntersectionObserver | null>(null)
   const totalRef = useRef(0)
 
-  // Stable fetch with full-text search: try /api/search first for pure keyword,
-  // fall back to /api/films with filter params for paged filtered results
   const doFetch = useRef(async (page: number, append: boolean) => {
     if (loadingRef.current) return
     loadingRef.current = true
+    pageRef.current = page
     dispatch({ type: 'SET_LOADING', loading: true })
     const s = stateRef.current
     const hasFilters = Boolean(s.filters.genre || s.filters.type || s.filters.yearFrom || s.filters.yearTo)
+    let localHasMore = false
     try {
       let items: Film[] = []
-      let hasMore = false
 
       if (!hasFilters && s.query && page === 1) {
-        // Fast full-text search for first page, no filters
         try {
           const data = await api('/api/search?q=' + encodeURIComponent(s.query))
           items = (data.items as Film[]) || []
           totalRef.current = items.length
-          hasMore = false // /api/search returns all at once
+          localHasMore = false
         } catch {
-          // fallback to /api/films
           const data = await api('/api/films?' + buildSearchParams(s, page).toString())
           items = (data.items as Film[]) || []
           const totalPages = (data.totalPages as number) || 1
-          if (!append) { totalRef.current = (data.total as number) || 0; dispatch({ type: 'SET_TOTAL_PAGES', totalPages }) }
-          hasMore = page < totalPages && items.length > 0
+          totalRef.current = (data.total as number) || 0
+          dispatch({ type: 'SET_TOTAL_PAGES', totalPages })
+          localHasMore = page < totalPages && items.length > 0
         }
       } else {
-        // Filtered / paginated search via /api/films
         const data = await api('/api/films?' + buildSearchParams(s, page).toString())
         items = (data.items as Film[]) || []
         const totalPages = (data.totalPages as number) || 1
         if (!append) { totalRef.current = (data.total as number) || 0; dispatch({ type: 'SET_TOTAL_PAGES', totalPages }) }
-        hasMore = page < totalPages && items.length > 0
+        localHasMore = page < totalPages && items.length > 0
 
-        // If /api/films returns nothing for page 1, try /api/search as fallback
         if (items.length === 0 && page === 1 && s.query) {
           try {
             const data2 = await api('/api/search?q=' + encodeURIComponent(s.query))
             items = (data2.items as Film[]) || []
             totalRef.current = items.length
-            hasMore = false
+            localHasMore = false
           } catch {}
         }
       }
 
       if (append) dispatch({ type: 'APPEND_ITEMS', items })
       else dispatch({ type: 'SET_ITEMS', items })
-      dispatch({ type: 'SET_HAS_MORE', hasMore })
+      hasMoreRef.current = localHasMore
+      dispatch({ type: 'SET_HAS_MORE', hasMore: localHasMore })
     } catch {
+      hasMoreRef.current = false
       dispatch({ type: 'SET_HAS_MORE', hasMore: false })
     } finally {
       loadingRef.current = false
       dispatch({ type: 'SET_LOADING', loading: false })
+      if (localHasMore) {
+        requestAnimationFrame(() => {
+          const obs = observerRef.current
+          const el = sentinelRef.current
+          if (obs && el) { obs.unobserve(el); obs.observe(el) }
+        })
+      }
     }
   })
 
@@ -123,6 +132,8 @@ export function SearchView({ onFilmClick, onBack }: Props) {
   const filterKey = `${state.filters.genre}|${state.filters.type}|${state.filters.order}|${state.filters.yearFrom}|${state.filters.yearTo}`
 
   useEffect(() => {
+    hasMoreRef.current = false
+    pageRef.current = 1
     dispatch({ type: 'SET_ITEMS', items: [] })
     dispatch({ type: 'SET_PAGE', page: 1 })
     dispatch({ type: 'SET_HAS_MORE', hasMore: true })
@@ -130,20 +141,20 @@ export function SearchView({ onFilmClick, onBack }: Props) {
     doFetch.current(1, false)
   }, [queryKey, filterKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stable observer
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel) return
     const observer = new IntersectionObserver(entries => {
       if (!entries.some(e => e.isIntersecting)) return
-      const s = stateRef.current
-      if (loadingRef.current || !s.hasMore) return
-      const nextPage = s.page + 1
+      if (loadingRef.current || !hasMoreRef.current) return
+      const nextPage = pageRef.current + 1
+      pageRef.current = nextPage
       dispatch({ type: 'SET_PAGE', page: nextPage })
       doFetch.current(nextPage, true)
-    }, { rootMargin: '500px 0px' })
+    }, { rootMargin: '600px 0px' })
+    observerRef.current = observer
     observer.observe(sentinel)
-    return () => observer.disconnect()
+    return () => { observer.disconnect(); observerRef.current = null }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isLoading = state.loading && state.items.length === 0

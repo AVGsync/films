@@ -112,7 +112,9 @@ export function DetailView({ kpId, onBack }: Props) {
   return (
     <main>
       {backdropSrc && (
-        <div className="detail-fixed-bg" style={{ backgroundImage: `url("${backdropSrc}")` }} />
+        <div className="detail-fixed-bg" style={{ backgroundImage: `url("${backdropSrc}")` }}>
+          <div className="detail-fixed-overlay" />
+        </div>
       )}
 
       <button className="back-btn" onClick={() => { dispatch({ type: 'SET_BACKDROP', backdrop: '' }); onBack() }}>

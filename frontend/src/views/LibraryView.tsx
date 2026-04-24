@@ -9,6 +9,15 @@ interface Props {
   onBack: () => void
 }
 
+// Deduplicate by kpId — history may have multiple entries per film (different providers)
+function dedup(items: Film[]): Film[] {
+  const seen = new Map<number, Film>()
+  for (const f of items) {
+    if (!seen.has(f.kpId)) seen.set(f.kpId, f)
+  }
+  return Array.from(seen.values())
+}
+
 export function LibraryView({ onFilmClick, onBack }: Props) {
   const { state, dispatch } = useStore()
   const [items, setItems] = useState<Film[]>([])
@@ -25,7 +34,7 @@ export function LibraryView({ onFilmClick, onBack }: Props) {
     setError('')
     try {
       const data = await api(`/api/library/${type}`)
-      setItems((data.items as Film[]) || [])
+      setItems(dedup((data.items as Film[]) || []))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Ошибка')
     } finally {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { useStore } from '../store'
 import { api } from '../api'
 import { FilmCard, SkeletonCard } from '../components/FilmCard'
@@ -35,7 +35,6 @@ function genreIDByNames(genres: Genre[], names: string[]): string {
 
 function buildParams(s: AppState, page: number): URLSearchParams {
   const coll = COLLECTIONS.find(c => c.type === s.collection) || {} as typeof COLLECTIONS[0]
-  const filtersActive = Boolean(s.filters.genre || s.filters.type || s.filters.yearFrom || s.filters.yearTo || s.filters.order !== 'RATING')
   const params = new URLSearchParams()
   params.set('page', String(page))
   const order = s.filters.order !== 'RATING' ? s.filters.order : ((coll as { order?: string }).order || 'RATING')
@@ -46,8 +45,17 @@ function buildParams(s: AppState, page: number): URLSearchParams {
   if (genre) params.set('genres', genre)
   if (s.filters.yearFrom) params.set('yearFrom', s.filters.yearFrom)
   if (s.filters.yearTo) params.set('yearTo', s.filters.yearTo)
-  return Object.assign(params, { _filtersActive: filtersActive })
+  return params
 }
+
+// Memoised grid — only re-renders when items array reference changes
+const FilmGrid = memo(({ items, onFilmClick }: { items: Film[]; onFilmClick: (id: number) => void }) => (
+  <>
+    {items.map(film => (
+      <FilmCard key={film.kpId} film={film} onClick={() => onFilmClick(film.kpId)} />
+    ))}
+  </>
+))
 
 interface Props {
   onFilmClick: (kpId: number) => void
@@ -57,67 +65,92 @@ export function HomeView({ onFilmClick }: Props) {
   const { state, dispatch } = useStore()
   const stateRef = useRef(state)
   stateRef.current = state
-  const loadingRef = useRef(false)
-  const sentinelRef = useRef<HTMLDivElement>(null)
 
-  // Stable fetch — reads state from ref, never stale
+  const loadingRef = useRef(false)
+  const hasMoreRef = useRef(true)   // sync hasMore, avoids stale state reads
+  const pageRef = useRef(1)         // sync page, avoids stale state reads
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+
+  // resetKey: incremented on every tab click (even same tab) → forces re-fetch
+  const [resetKey, setResetKey] = useState(0)
+
+  const filtersActive = Boolean(
+    state.filters.genre || state.filters.type || state.filters.yearFrom ||
+    state.filters.yearTo || state.filters.order !== 'RATING'
+  )
+  const collKey = state.collection
+  const filterKey = `${state.filters.genre}|${state.filters.type}|${state.filters.order}|${state.filters.yearFrom}|${state.filters.yearTo}`
+
+  // Stable fetch fn stored in ref — reads from stateRef, never stale
   const doFetch = useRef(async (page: number, append: boolean) => {
     if (loadingRef.current) return
     loadingRef.current = true
+    pageRef.current = page
     dispatch({ type: 'SET_LOADING', loading: true })
     const s = stateRef.current
-    const filtersActive = Boolean(s.filters.genre || s.filters.type || s.filters.yearFrom || s.filters.yearTo || s.filters.order !== 'RATING')
+    const useFilters = Boolean(s.filters.genre || s.filters.type || s.filters.yearFrom || s.filters.yearTo || s.filters.order !== 'RATING')
+    let localHasMore = false
     try {
       let items: Film[] = []
-      let hasMore = false
-      if (filtersActive) {
-        const params = buildParams(s, page)
-        const data = await api('/api/films?' + params.toString())
+      if (useFilters) {
+        const data = await api('/api/films?' + buildParams(s, page).toString())
         items = (data.items as Film[]) || []
         const totalPages = (data.totalPages as number) || 1
         dispatch({ type: 'SET_TOTAL_PAGES', totalPages })
-        hasMore = page < totalPages && items.length > 0
+        localHasMore = page < totalPages && items.length > 0
       } else {
         const data = await api(`/api/collections?type=${encodeURIComponent(s.collection)}&page=${page}`)
         items = (data.items as Film[]) || []
-        hasMore = items.length >= 20
+        localHasMore = items.length >= 20
       }
       if (append) dispatch({ type: 'APPEND_ITEMS', items })
       else dispatch({ type: 'SET_ITEMS', items })
-      dispatch({ type: 'SET_HAS_MORE', hasMore })
+      hasMoreRef.current = localHasMore
+      dispatch({ type: 'SET_HAS_MORE', hasMore: localHasMore })
     } catch {
+      hasMoreRef.current = false
       dispatch({ type: 'SET_HAS_MORE', hasMore: false })
     } finally {
       loadingRef.current = false
       dispatch({ type: 'SET_LOADING', loading: false })
+      // Re-observe sentinel: forces IntersectionObserver to re-evaluate.
+      // Critical on large screens where sentinel never leaves viewport.
+      if (localHasMore) {
+        requestAnimationFrame(() => {
+          const obs = observerRef.current
+          const el = sentinelRef.current
+          if (obs && el) { obs.unobserve(el); obs.observe(el) }
+        })
+      }
     }
   })
 
-  // Reset + refetch when collection or filters change (stable keys)
-  const collKey = state.collection
-  const filterKey = `${state.filters.genre}|${state.filters.type}|${state.filters.order}|${state.filters.yearFrom}|${state.filters.yearTo}`
-
+  // Reset + refetch on collection/filter/resetKey change
   useEffect(() => {
+    hasMoreRef.current = true
+    pageRef.current = 1
     dispatch({ type: 'SET_ITEMS', items: [] })
     dispatch({ type: 'SET_PAGE', page: 1 })
     dispatch({ type: 'SET_HAS_MORE', hasMore: true })
     doFetch.current(1, false)
-  }, [collKey, filterKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [collKey, filterKey, resetKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stable observer — created once, reads stateRef
+  // Single stable observer — uses refs, never recreated
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel) return
     const observer = new IntersectionObserver(entries => {
       if (!entries.some(e => e.isIntersecting)) return
-      const s = stateRef.current
-      if (loadingRef.current || !s.hasMore) return
-      const nextPage = s.page + 1
+      if (loadingRef.current || !hasMoreRef.current) return
+      const nextPage = pageRef.current + 1
+      pageRef.current = nextPage
       dispatch({ type: 'SET_PAGE', page: nextPage })
       doFetch.current(nextPage, true)
-    }, { rootMargin: '500px 0px' })
+    }, { rootMargin: '600px 0px' })
+    observerRef.current = observer
     observer.observe(sentinel)
-    return () => observer.disconnect()
+    return () => { observer.disconnect(); observerRef.current = null }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isLoading = state.loading && state.items.length === 0
@@ -129,7 +162,10 @@ export function HomeView({ onFilmClick }: Props) {
           <button
             key={c.type}
             className={`tab${state.collection === c.type ? ' active' : ''}`}
-            onClick={() => dispatch({ type: 'SET_COLLECTION', collection: c.type })}
+            onClick={() => {
+              dispatch({ type: 'SET_COLLECTION', collection: c.type })
+              setResetKey(k => k + 1)
+            }}
           >
             {c.label}
           </button>
@@ -139,8 +175,11 @@ export function HomeView({ onFilmClick }: Props) {
       <FilterBar
         filters={state.filters}
         genres={state.genres}
+        filtersActive={filtersActive}
         onFilterChange={f => dispatch({ type: 'SET_FILTERS', filters: f })}
         onApply={() => {
+          hasMoreRef.current = true
+          pageRef.current = 1
           dispatch({ type: 'SET_ITEMS', items: [] })
           dispatch({ type: 'SET_PAGE', page: 1 })
           doFetch.current(1, false)
@@ -151,9 +190,7 @@ export function HomeView({ onFilmClick }: Props) {
       <div className="grid">
         {isLoading
           ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
-          : state.items.map(film => (
-            <FilmCard key={film.kpId} film={film} onClick={() => onFilmClick(film.kpId)} />
-          ))
+          : <FilmGrid items={state.items} onFilmClick={onFilmClick} />
         }
         {!isLoading && state.items.length === 0 && !state.loading && (
           <div className="state-box"><strong>Ничего не найдено</strong></div>
@@ -168,11 +205,12 @@ export function HomeView({ onFilmClick }: Props) {
   )
 }
 
-function FilterBar({
-  filters, genres, onFilterChange, onApply, onReset,
+const FilterBar = memo(function FilterBar({
+  filters, genres, filtersActive, onFilterChange, onApply, onReset,
 }: {
   filters: { genre: string; type: string; order: string; yearFrom: string; yearTo: string }
   genres: Genre[]
+  filtersActive: boolean
   onFilterChange: (f: Partial<typeof filters>) => void
   onApply: () => void
   onReset: () => void
@@ -195,8 +233,8 @@ function FilterBar({
       <label>до</label>
       <input type="number" placeholder="2026" min="1900" max="2035" value={filters.yearTo}
         onChange={e => onFilterChange({ yearTo: e.target.value })} />
-      <button className="btn btn-glass active" onClick={onApply}>Применить</button>
+      <button className={`btn btn-glass${filtersActive ? ' active' : ''}`} onClick={onApply}>Применить</button>
       <button className="btn btn-glass" onClick={onReset}>Сбросить</button>
     </div>
   )
-}
+})

@@ -382,14 +382,18 @@ main {
 
 /* ── Detail ── */
 .detail-fixed-bg {
-  position: fixed; inset: -60px; z-index: -1;
+  position: fixed; inset: -40px; z-index: -1;
   background-size: cover; background-position: center;
-  filter: blur(28px) saturate(1.4) brightness(0.28);
+  filter: blur(10px) saturate(1.8) brightness(0.52);
   pointer-events: none;
 }
-.detail-fixed-bg::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(5,5,12,0.3) 0%, rgba(5,5,12,0.6) 60%, #050508 100%);
+.detail-fixed-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    rgba(5,5,12,0.10) 0%,
+    rgba(5,5,12,0.35) 50%,
+    rgba(5,5,12,0.90) 100%
+  );
 }
 
 .detail-layout {
@@ -695,6 +699,20 @@ td select option { background: #0d0d1a; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
 
-/* ── Perf hints ── */
-.card, .detail-layout, .modal, .tabs-wrap, .filter-bar { contain: layout style; }
+/* ── Perf: skip off-screen card rendering ── */
+.card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 320px; /* approx card height, prevents layout shift */
+}
 img { decoding: async; }
+
+/* ── Card height consistency ── */
+.card { display: flex; flex-direction: column; }
+.card-info { flex: 1; display: flex; flex-direction: column; }
+.card-meta { margin-top: auto; }
+
+/* ── Grid alignment: prevent orphan single card stretching ── */
+.grid::after {
+  content: '';
+  grid-column: span 2;
+}

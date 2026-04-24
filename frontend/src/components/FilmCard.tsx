@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { proxyImg } from '../api'
 import { type Film } from '../types'
 
@@ -8,7 +9,7 @@ interface Props {
   showRemove?: boolean
 }
 
-export function FilmCard({ film, onClick, onRemove, showRemove }: Props) {
+export const FilmCard = memo(function FilmCard({ film, onClick, onRemove, showRemove }: Props) {
   const src = proxyImg(film.poster)
   const meta = [film.year, (film.genres || []).slice(0, 2).join(', ')].filter(Boolean).join(' · ')
   const metaLib = film.timestamp
@@ -18,7 +19,7 @@ export function FilmCard({ film, onClick, onRemove, showRemove }: Props) {
   return (
     <article className="card" onClick={onClick}>
       <div className="card-poster">
-        {src && <img src={src} alt={film.title} loading="lazy" />}
+        {src && <img src={src} alt={film.title} loading="lazy" decoding="async" />}
         {film.rating && <span className="card-rating">★ {film.rating}</span>}
       </div>
       <div className="card-info">
@@ -32,9 +33,9 @@ export function FilmCard({ film, onClick, onRemove, showRemove }: Props) {
       </div>
     </article>
   )
-}
+})
 
-export function SkeletonCard() {
+export const SkeletonCard = memo(function SkeletonCard() {
   return (
     <div className="card">
       <div className="sk-poster skeleton" />
@@ -42,4 +43,4 @@ export function SkeletonCard() {
       <div className="sk-meta skeleton" />
     </div>
   )
-}
+})

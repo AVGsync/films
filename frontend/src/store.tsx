@@ -54,7 +54,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_PROVIDERS':
       return { ...state, providers: action.providers }
     case 'SET_COLLECTION':
-      return { ...state, collection: action.collection, items: [], page: 1 }
+      return { ...state, collection: action.collection }
     case 'SET_QUERY':
       return { ...state, query: action.query }
     case 'SET_FILTERS':
