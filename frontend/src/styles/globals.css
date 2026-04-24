@@ -731,7 +731,12 @@ td select option { background: #0d0d1a; }
   .detail-poster { max-width: none; }
   .detail-title { font-size: 18px; }
   .detail-desc { -webkit-line-clamp: unset; overflow: visible; display: block; }
-  .player-shell { aspect-ratio: unset; min-height: 260px; height: 56vw; }
+  .player-shell {
+    aspect-ratio: unset; min-height: 56vw; height: 56vw;
+    width: 100vw; position: relative;
+    left: 50%; transform: translateX(-50%);
+    border-radius: 0;
+  }
 
   .user-chip { max-width: 90px; }
   th, td { padding: 9px 8px; font-size: 12px; }
