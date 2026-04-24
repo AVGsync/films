@@ -1,0 +1,52 @@
+services:
+  redis:
+    container_name: films-redis
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  films:
+    container_name: films
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - redis
+    ports:
+      - "8282:8282"
+    env_file:
+      - .env
+    environment:
+      ALLOHA_UPSTREAM_PROXY_URL: "socks5://naAv3d:rdYE17@46.8.58.218:8000"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    restart: unless-stopped
+  caddy:
+    container_name: films-caddy
+    image: caddy:2.8-alpine
+    depends_on:
+      - films
+    user: "0:0"
+    environment:
+      FILMS_DOMAIN: "ruwcdymvkbox.duckdns.org"
+      CERT_FILE: "/certs/ruwcdymvkbox.duckdns.org.cer"
+      KEY_FILE: "/certs/ruwcdymvkbox.duckdns.org.cer.key"
+    entrypoint: ["/bin/sh", "/usr/local/bin/caddy-entrypoint.sh"]
+    ports:
+      - "80:80"
+      - "4443:4443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy-entrypoint.sh:/usr/local/bin/caddy-entrypoint.sh:ro
+      - /var/lib/marzban/certs:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:

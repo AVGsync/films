@@ -1,0 +1,22 @@
+{
+	http_port 80
+	https_port 4443
+}
+
+http://{$FILMS_DOMAIN} {
+	redir https://{$FILMS_DOMAIN}:4443{uri} permanent
+}
+
+https://{$FILMS_DOMAIN}:4443 {
+	tls {$CERT_FILE} {$KEY_FILE}
+
+	reverse_proxy films:8282
+
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
